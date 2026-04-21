@@ -1,0 +1,460 @@
+﻿using JmcModLib.Utils;
+using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
+using InsCache = System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.Assembly, System.Runtime.CompilerServices.ConditionalWeakTable<object, System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.MemberInfo, ExprHelper.MemberAccessors>>>;
+using InsDict = System.Runtime.CompilerServices.ConditionalWeakTable<object, System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.MemberInfo, ExprHelper.MemberAccessors>>;
+// 实例成员缓存：Assembly -> target -> (MemberInfo -> Accessors)
+using MemDict = System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.MemberInfo, ExprHelper.MemberAccessors>;
+using StaCache = System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.Assembly, System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.MemberInfo, ExprHelper.MemberAccessors>>;
+
+/// <summary>
+/// 解析表达式的一些库
+/// </summary>
+public static class ExprHelper
+{
+    // 每个 Assembly 一份配置
+    private class AssemblyConfig
+    {
+        public bool EnableCache { get; set; } = true;
+        public MemberAccessMode Mode { get; set; } = MemberAccessMode.Default;
+    }
+
+    private static readonly ConcurrentDictionary<Assembly, AssemblyConfig> _configs = new();
+
+    private static bool GetEnableCache(Assembly? asm = null)
+    {
+        return _configs.GetOrAdd(asm ?? Assembly.GetCallingAssembly(), _ => new AssemblyConfig()).EnableCache;
+    }
+
+    private static void SetEnableCache(bool value, Assembly? asm = null)
+    {
+        asm ??= Assembly.GetCallingAssembly();
+        var cfg = _configs.GetOrAdd(asm, _ => new AssemblyConfig());
+
+        if (cfg.EnableCache != value)
+        {
+            cfg.EnableCache = value;
+            ClearAssemblyCache(asm);
+            ModLogger.Debug($"[{asm.GetName().Name}] 缓存已{(value ? "开启" : "关闭")}");
+        }
+    }
+
+    /// <summary>
+    /// 是否开启缓存，不建议修改
+    /// </summary>
+    public static bool EnableCache
+    {
+        get => GetEnableCache(Assembly.GetCallingAssembly());
+        set => SetEnableCache(value, Assembly.GetCallingAssembly());
+    }
+
+    private static MemberAccessMode GetAccessMode(Assembly? asm = null)
+    {
+        return _configs.GetOrAdd(asm ?? Assembly.GetCallingAssembly(), _ => new AssemblyConfig()).Mode;
+    }
+
+    private static void SetAccessMode(MemberAccessMode mode, Assembly? asm = null)
+    {
+        asm ??= Assembly.GetCallingAssembly();
+        var cfg = _configs.GetOrAdd(asm, _ => new AssemblyConfig());
+
+        if (cfg.Mode != mode)
+        {
+            cfg.Mode = mode;
+            string modeText = mode switch
+            {
+                MemberAccessMode.Reflection => "反射",
+                MemberAccessMode.ExpressionTree => "表达式树",
+                MemberAccessMode.Emit => "Emit",
+                _ => "未知"
+            };
+            ModLogger.Info($"[{asm.GetName().Name}] MemberAccessor 切换为 {modeText} 模式");
+            ClearAssemblyCache(asm);
+        }
+    }
+
+    /// <summary>
+    /// 生成Accessor的后端，不建议修改，默认为Emit
+    /// </summary>
+    public static MemberAccessMode AccessMode
+    {
+        get => GetAccessMode(Assembly.GetCallingAssembly());
+        set => SetAccessMode(value, Assembly.GetCallingAssembly());
+    }
+
+    /// <summary>
+    /// 生成Accessor的后端模式
+    /// </summary>
+    public enum MemberAccessMode
+    {
+        /// <summary>
+        /// 直接反射
+        /// </summary>
+        Reflection,
+
+        /// <summary>
+        /// 表达式树实现
+        /// </summary>
+        ExpressionTree,
+
+        /// <summary>
+        /// Emit实现
+        /// </summary>
+        Emit,
+
+        /// <summary>
+        /// 默认值，默认为Emit
+        /// </summary>
+        Default = Emit,
+    }
+
+    /// <summary>
+    /// 仅供检查类型别名嵌套关系是否正确的辅助函数
+    /// </summary>
+    [Conditional("NEVER")]
+    private static void Expect<T1, T2>() where T1 : T2
+    { }
+
+    [Conditional("NEVER")]
+    private static void Check()
+    {
+        // 检查类型别名的嵌套关系是否正确，不正确将报错，静态检查，不运行
+        Expect<ConditionalWeakTable<object, MemDict>, InsDict>();
+        Expect<InsDict, ConditionalWeakTable<object, MemDict>>();
+        Expect<ConcurrentDictionary<Assembly, InsDict>, InsCache>();
+        Expect<InsCache, ConcurrentDictionary<Assembly, InsDict>>();
+        Expect<ConcurrentDictionary<Assembly, MemDict>, StaCache>();
+        Expect<StaCache, ConcurrentDictionary<Assembly, MemDict>>();
+    }
+
+    private static readonly InsCache _insCache = new();
+    private static readonly StaCache _staCache = new();
+
+    /// <summary>
+    /// 类型访问器辅助类
+    /// </summary>
+    public record MemberAccessors(Delegate Getter, Delegate Setter);
+
+    /// <summary>
+    /// 从一个变量自动构造getter函数与setter函数，调用形式形如：
+    /// <example>
+    /// <code>
+    ///  var (gf, sf) = ExprHelper.GetOrCreateAccessors(() => obj.Field)
+    /// </code>
+    /// </example>
+    /// </summary>
+    /// <typeparam name="T">变量的类型</typeparam>
+    /// <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
+    /// <param name="assembly">程序集，默认为调用者</param>
+    /// <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
+    /// <exception cref="ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
+    /// <exception cref="InvalidOperationException">实例对象为空、模式选择不正确</exception>
+    public static (Func<T> getter, Action<T> setter) GetOrCreateAccessors<T>
+        (Expression<Func<T>> expr, Assembly? assembly = null)
+        => GetOrCreateAccessors(expr, out _, assembly ?? Assembly.GetCallingAssembly());
+
+    /// <summary>
+    /// 从一个变量自动构造getter函数与setter函数，并检查是否命中缓存，调用形式形如：
+    /// <example>
+    /// <code>
+    /// var (g, s) = ExprHelper.GetOrCreateAccessors(() => a.Field, out bool hit);
+    /// </code>
+    /// </example>
+    /// </summary>
+    /// <typeparam name="T">变量的类型</typeparam>
+    /// <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
+    /// <param name="cacheHit">是否命中缓存</param>
+    /// <param name="assembly">程序集，默认为调用者</param>
+    /// <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
+    /// <exception cref="ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
+    /// <exception cref="InvalidOperationException">实例对象为空、模式选择不正确</exception>
+    public static (Func<T> getter, Action<T> setter) GetOrCreateAccessors<T>
+        (Expression<Func<T>> expr, out bool cacheHit, Assembly? assembly = null)
+    {
+        if (expr.Body is not MemberExpression memberExpr)
+            throw new ArgumentException("表达式必须是字段或属性，例如 () => Config.ShowFPS", nameof(expr));
+
+        // ModLogger.Debug($"当前是否开启缓存: {EnableCache}");
+
+        var member = memberExpr.Member;
+        var targetExpr = memberExpr.Expression;
+        var asm = assembly ?? Assembly.GetCallingAssembly();
+        // object target = StaticKey;
+
+        bool isStatic = member switch
+        {
+            FieldInfo f => f.IsStatic,
+            PropertyInfo p => (p.GetGetMethod(true) ?? p.GetSetMethod(true))?.IsStatic ?? false,
+            _ => throw new ArgumentException($"成员 {member.Name} 不是字段或属性")
+        };
+
+        object? target = null;
+        if (!isStatic)
+        {
+            var targetGetter = Expression.Lambda<Func<object>>(Expression.Convert(targetExpr, typeof(object))).Compile();
+            target = targetGetter() ?? throw new InvalidOperationException("实例对象不能为空");
+        }
+
+        if (!GetEnableCache(asm))
+        {
+            // 缓存关闭：直接创建新的访问器
+            var accessors = CreateAccessors<T>(member, target, asm);
+            cacheHit = false;
+            return ((Func<T>)accessors.Getter, (Action<T>)accessors.Setter);
+        }
+        else
+        {
+            var memDict = target == null ? _staCache.GetOrAdd(asm, _ => new())
+                                         : _insCache.GetOrAdd(asm, _ => []).GetOrCreateValue(target);
+
+            bool created = false;
+            var accessors = memDict.GetOrAdd(member, _ =>
+            {
+                created = true;
+                return CreateAccessors<T>(member, target, asm);
+            });
+
+            cacheHit = !created;
+            return ((Func<T>)accessors.Getter, (Action<T>)accessors.Setter);
+        }
+    }
+
+    private static MemberAccessors CreateAccessors<T>(MemberInfo member, object? target, Assembly assembly)
+    {
+        // ModLogger.Debug($"为{assembly.GetName().Name}选择模式，值为{GetAccessMode(assembly)}");
+        // 根据 AccessMode 选择后端
+        return GetAccessMode(assembly) switch
+        {
+            MemberAccessMode.Emit => CreateAccessorsByEmit<T>(member, target),
+            MemberAccessMode.Reflection => CreateAccessorsByReflection<T>(member, target),
+            MemberAccessMode.ExpressionTree => CreateAccessorsByExpressionTree<T>(member, target),
+            _ => throw new InvalidOperationException("Unknown AccessMode")
+        };
+    }
+
+    /// <summary>
+    /// 创建 getter/setter
+    /// </summary>
+    private static MemberAccessors CreateAccessorsByExpressionTree<T>(MemberInfo member, object? target)
+    {
+        // ModLogger.Debug("CreateAccessorsByExpressionTree");
+        var valueParam = Expression.Parameter(typeof(T), "value");
+
+        switch (member)
+        {
+            case FieldInfo fi:
+                {
+                    var instanceExpr = target != null ? Expression.Constant(target) : null;
+                    var getterExpr = Expression.Field(instanceExpr, fi);
+                    var setterExpr = Expression.Assign(Expression.Field(instanceExpr, fi), valueParam);
+
+                    var getter = Expression.Lambda<Func<T>>(Expression.Convert(getterExpr, typeof(T))).Compile();
+                    var setter = Expression.Lambda<Action<T>>(setterExpr, valueParam).Compile();
+
+                    return new MemberAccessors(getter, setter);
+                }
+
+            case PropertyInfo pi:
+                {
+                    var instanceExpr = target != null ? Expression.Constant(target) : null;
+
+                    var getter = pi.CanRead && pi.GetMethod != null
+                        ? Expression.Lambda<Func<T>>(Expression.Convert(Expression.Property(instanceExpr, pi), typeof(T))).Compile()
+                        : new Func<T>(() => throw new InvalidOperationException($"属性 {pi.Name} 没有 getter"));
+
+                    var setter = pi.CanWrite && pi.SetMethod != null
+                        ? Expression.Lambda<Action<T>>(Expression.Assign(Expression.Property(instanceExpr, pi), valueParam), valueParam).Compile()
+                        : new Action<T>(_ => throw new InvalidOperationException($"属性 {pi.Name} 没有 setter"));
+
+                    return new MemberAccessors(getter, setter);
+                }
+
+            default:
+                throw new ArgumentException($"成员 {member.Name} 不是字段或属性");
+        }
+    }
+
+    /// <summary>
+    /// 使用 DynamicMethod + IL Emit 创建 getter/setter
+    /// </summary>
+    private static MemberAccessors CreateAccessorsByEmit<T>(MemberInfo member, object? target)
+    {
+        // ModLogger.Debug("CreateAccessorsByEmit");
+        switch (member)
+        {
+            case FieldInfo fi:
+                {
+                    Func<T> getter;
+                    Action<T> setter;
+
+                    if (fi.IsStatic)
+                    {
+                        // --- 静态字段 ---
+                        var getterMethod = new DynamicMethod(
+                            $"get_{fi.Name}_{Guid.NewGuid():N}",
+                            typeof(T),
+                            Type.EmptyTypes,
+                            typeof(object).Module,
+                            true);
+                        var il = getterMethod.GetILGenerator();
+                        il.Emit(OpCodes.Ldsfld, fi);
+                        if (fi.FieldType != typeof(T))
+                            il.Emit(OpCodes.Castclass, typeof(T));
+                        il.Emit(OpCodes.Ret);
+                        getter = (Func<T>)getterMethod.CreateDelegate(typeof(Func<T>));
+
+                        var setterMethod = new DynamicMethod(
+                            $"set_{fi.Name}_{Guid.NewGuid():N}",
+                            typeof(void),
+                            new[] { typeof(T) },
+                            typeof(object).Module,
+                            true);
+                        var il2 = setterMethod.GetILGenerator();
+                        il2.Emit(OpCodes.Ldarg_0);
+                        if (fi.FieldType.IsValueType && typeof(T) != fi.FieldType)
+                            il2.Emit(OpCodes.Unbox_Any, fi.FieldType);
+                        else if (typeof(T) != fi.FieldType)
+                            il2.Emit(OpCodes.Castclass, fi.FieldType);
+                        il2.Emit(OpCodes.Stsfld, fi);
+                        il2.Emit(OpCodes.Ret);
+                        setter = (Action<T>)setterMethod.CreateDelegate(typeof(Action<T>));
+                    }
+                    else
+                    {
+                        if (target == null)
+                            throw new ArgumentNullException(nameof(target), $"实例字段 {fi.Name} 的 target 不能为 null");
+
+                        // --- 实例字段 ---
+                        // getter: (object obj) => (TUI)((YourType)obj).Field
+                        var getterMethod = new DynamicMethod(
+                            $"get_{fi.Name}_{Guid.NewGuid():N}",
+                            typeof(T),
+                            new[] { typeof(object) },
+                            typeof(object).Module,
+                            true);
+                        var il = getterMethod.GetILGenerator();
+                        il.Emit(OpCodes.Ldarg_0);
+                        if (fi.DeclaringType!.IsValueType)
+                            il.Emit(OpCodes.Unbox, fi.DeclaringType);
+                        else
+                            il.Emit(OpCodes.Castclass, fi.DeclaringType);
+                        il.Emit(OpCodes.Ldfld, fi);
+                        if (fi.FieldType != typeof(T))
+                            il.Emit(OpCodes.Castclass, typeof(T));
+                        il.Emit(OpCodes.Ret);
+                        var getterRaw = (Func<object, T>)getterMethod.CreateDelegate(typeof(Func<object, T>));
+                        getter = () => getterRaw(target);
+
+                        // setter: (object obj, TUI value) => ((YourType)obj).Field = value
+                        var setterMethod = new DynamicMethod(
+                            $"set_{fi.Name}_{Guid.NewGuid():N}",
+                            typeof(void),
+                            new[] { typeof(object), typeof(T) },
+                            typeof(object).Module,
+                            true);
+                        var il2 = setterMethod.GetILGenerator();
+                        il2.Emit(OpCodes.Ldarg_0);
+                        if (fi.DeclaringType!.IsValueType)
+                            il2.Emit(OpCodes.Unbox, fi.DeclaringType);
+                        else
+                            il2.Emit(OpCodes.Castclass, fi.DeclaringType);
+                        il2.Emit(OpCodes.Ldarg_1);
+                        if (fi.FieldType.IsValueType && typeof(T) != fi.FieldType)
+                            il2.Emit(OpCodes.Unbox_Any, fi.FieldType);
+                        else if (typeof(T) != fi.FieldType)
+                            il2.Emit(OpCodes.Castclass, fi.FieldType);
+                        il2.Emit(OpCodes.Stfld, fi);
+                        il2.Emit(OpCodes.Ret);
+                        var setterRaw = (Action<object, T>)setterMethod.CreateDelegate(typeof(Action<object, T>));
+                        setter = v => setterRaw(target, v);
+                    }
+
+                    return new MemberAccessors(getter, setter);
+                }
+
+            case PropertyInfo pi:
+                {
+                    if (!pi.CanRead && !pi.CanWrite)
+                        throw new ArgumentException($"属性 {pi.Name} 没有 getter/setter");
+
+                    if (!pi.GetMethod!.IsStatic && target == null)
+                        throw new ArgumentNullException(nameof(target), $"实例属性 {pi.Name} 的 target 不能为 null");
+
+                    // --- Getter ---
+                    Func<T> getter = pi.CanRead
+                        ? (pi.GetMethod!.IsStatic
+                            ? (Func<T>)Delegate.CreateDelegate(typeof(Func<T>), pi.GetMethod!)
+                            : (Func<T>)Delegate.CreateDelegate(typeof(Func<T>), target!, pi.GetMethod!))
+                        : (() => throw new InvalidOperationException($"属性 {pi.Name} 没有 getter"));
+
+                    // --- Setter ---
+                    Action<T> setter = pi.CanWrite
+                        ? (pi.SetMethod!.IsStatic
+                            ? (Action<T>)Delegate.CreateDelegate(typeof(Action<T>), pi.SetMethod!)
+                            : (Action<T>)Delegate.CreateDelegate(typeof(Action<T>), target!, pi.SetMethod!))
+                        : (_ => throw new InvalidOperationException($"属性 {pi.Name} 没有 setter"));
+
+                    return new MemberAccessors(getter, setter);
+                }
+
+            default:
+                throw new ArgumentException($"成员 {member.Name} 不是字段或属性");
+        }
+    }
+
+    private static MemberAccessors CreateAccessorsByReflection<T>(MemberInfo member, object? target)
+    {
+        // ModLogger.Debug("CreateAccessorsByReflection");
+        switch (member)
+        {
+            case FieldInfo fi:
+                {
+                    Func<T> getter = () => (T)fi.GetValue(target)!;
+                    Action<T> setter = v => fi.SetValue(target, v);
+                    return new MemberAccessors(getter, setter);
+                }
+
+            case PropertyInfo pi:
+                {
+                    Func<T> getter = pi.CanRead && pi.GetMethod != null
+                        ? () => (T)pi.GetValue(target)!
+                        : () => throw new InvalidOperationException($"属性 {pi.Name} 没有 getter");
+
+                    Action<T> setter = pi.CanWrite && pi.SetMethod != null
+                        ? v => pi.SetValue(target, v)
+                        : _ => throw new InvalidOperationException($"属性 {pi.Name} 没有 setter");
+
+                    return new MemberAccessors(getter, setter);
+                }
+
+            default:
+                throw new ArgumentException($"成员 {member.Name} 不是字段或属性");
+        }
+    }
+
+    /// <summary>
+    /// 清理某个 Assembly 的缓存
+    /// </summary>
+    public static void ClearAssemblyCache(Assembly? assembly = null)
+    {
+        assembly ??= Assembly.GetCallingAssembly();
+        _insCache.TryRemove(assembly, out _);
+        _staCache.TryRemove(assembly, out _);
+        ModLogger.Info($"[{assembly.GetName().Name}] 缓存已清空");
+    }
+
+    /// <summary>
+    /// 清理所有缓存
+    /// </summary>
+    private static void ClearAll()
+    {
+        _insCache.Clear();
+        _staCache.Clear();
+        ModLogger.Info($"已清空所有缓存");
+    }
+}
