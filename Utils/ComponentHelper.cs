@@ -1,101 +1,78 @@
-﻿using System;
-using UnityEngine;
+using Godot;
 
-namespace JmcModLib.Utils
+namespace JmcModLib.Utils;
+
+/// <summary>
+/// Small Godot node helpers that replace the old Unity component helpers.
+/// </summary>
+public static class ComponentHelper
 {
-    /// <summary>
-    /// 一些用来往GameObject里加Component的方法
-    /// </summary>
-    public static class ComponentHelper
+    public static bool TryAddChild<T>(
+        Node parent,
+        out T child,
+        string? nodeName = null,
+        Action<T>? initialize = null)
+        where T : Node, new()
     {
-        /// <summary>
-        /// 确保组件被添加并初始化
-        /// <example>
-        /// 示例：
-        /// <code>
-        /// var ret = Utils.ComponentHelper.AddComponentIfNeeded&lt;UI.ModEntryDragHandler>(__instance.gameObject, handler => handler.Setup(__instance), "ModEntryDragHandler 已添加并初始化");
-        /// if (!ret)
-        /// {
-        ///     ModLogger.Debug("ModEntryDragHandler已经被添加过了");
-        /// }
-        /// </code>
-        /// </example>
-        /// </summary>
-        /// <typeparam name="T">组件类型</typeparam>
-        /// <param name="instance">目标 GameObject</param>
-        /// <param name="initializeMethod">初始化方法，接受该组件的实例作为参数</param>
-        /// <param name="info">可选的参数，成功添加的日志信息，如果有传递，会打印到Debug日志中</param>
-        /// <returns>如果组件已存在返回 false，成功添加返回 true</returns>
-        /// 
-        public static bool AddComponentIfNeeded<T>(GameObject instance, Action<T>? initializeMethod = null, string? info = null) where T : Component
-        {
-            if (instance == null)
-            {
-                ModLogger.Error($"{nameof(instance)} 为空");
-                return false;
-            }
-            if (instance.GetComponent<T>() != null)
-            {
-                return false;
-            }
+        ArgumentNullException.ThrowIfNull(parent);
 
-            var tmp = instance.AddComponent<T>();
-            initializeMethod?.Invoke(tmp);
-            if (info != null)
-            {
-                ModLogger.Debug(info);
-            }
-            return true;
+        string resolvedName = string.IsNullOrWhiteSpace(nodeName) ? typeof(T).Name : nodeName;
+        child = parent.GetNodeOrNull<T>(new NodePath(resolvedName));
+        if (child != null)
+        {
+            return false;
         }
 
-        /// <summary>
-        /// 若GameObject中已存在component，初始化，否则添加并初始化
-        /// </summary>
-        /// <typeparam name="T">组件类型</typeparam>
-        /// <param name="instance">目标 GameObject</param>
-        /// <param name="initializeMethod">初始化方法，接受该组件的实例作为参数</param>
-        /// <param name="info">可选的参数，成功添加的日志信息，如果有传递，会打印到Debug日志中</param>
-        /// <returns> 返回组件 </returns>
-        public static T AddComponentAlways<T>(GameObject instance, Action<T>? initializeMethod = null, string? info = null) where T : Component
+        child = new T
         {
-            if (instance == null) throw new ArgumentNullException(nameof(instance));
+            Name = resolvedName
+        };
+        parent.AddChild(child);
+        initialize?.Invoke(child);
+        return true;
+    }
 
-            T component = instance.GetComponent<T>() ?? instance.AddComponent<T>();
+    public static T GetOrAddChild<T>(
+        Node parent,
+        string? nodeName = null,
+        Action<T>? initialize = null)
+        where T : Node, new()
+    {
+        TryAddChild(parent, out T child, nodeName, initialize);
+        return child;
+    }
 
-            initializeMethod?.Invoke(component);
+    public static T RequireChild<T>(Node parent, string nodePath) where T : Node
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodePath);
 
-            if (info != null)
+        return parent.GetNodeOrNull<T>(new NodePath(nodePath))
+            ?? throw new InvalidOperationException(
+                $"Could not find child node '{nodePath}' under '{parent.Name}'.");
+    }
+
+    public static T? FindChildOfType<T>(Node parent, bool recursive = true) where T : Node
+    {
+        ArgumentNullException.ThrowIfNull(parent);
+
+        foreach (Node child in parent.GetChildren())
+        {
+            if (child is T typedChild)
             {
-                ModLogger.Debug(info);
+                return typedChild;
             }
 
-            return component;
+            if (recursive)
+            {
+                T? nested = FindChildOfType<T>(child, recursive: true);
+                if (nested != null)
+                {
+                    return nested;
+                }
+            }
         }
 
-        /// <summary>
-        /// 如果GameObject中已存在component组件，执行onComponentFound，否则添加
-        /// </summary>
-        /// <typeparam name="T">组件类型</typeparam>
-        /// <param name="instance">目标 GameObject</param>
-        /// <param name="initializeMethod">初始化方法，接受该组件的实例作为参数</param>
-        /// <param name="onComponentFound">待执行的函数</param>
-        /// <param name="info">可选的参数，成功添加的日志信息，如果有传递，会打印到Debug日志中</param>
-        /// <returns></returns>
-        public static bool AddComponentOr<T>(GameObject instance, Action<T> initializeMethod, Action<T> onComponentFound, string? info = null) where T : Component
-        {
-            var component = instance.GetComponent<T>();
-            if (component != null)
-            {
-                onComponentFound(component);
-                return false;
-            }
-
-            initializeMethod(instance.AddComponent<T>());
-            if (info != null)
-            {
-                ModLogger.Debug(info);
-            }
-            return true;
-        }
+        return null;
     }
 }

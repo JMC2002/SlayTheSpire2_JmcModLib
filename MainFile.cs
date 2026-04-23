@@ -1,4 +1,4 @@
-﻿using JmcModLib.Core;
+using JmcModLib.Core;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Modding;
@@ -11,6 +11,11 @@ public partial class MainFile : Node
 {
     public static void Initialize()
     {
+        ModBootstrap.Init<MainFile>(VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)
+            .RegisterLogger()
+            .UseConfig()
+            .Done();
+
         ModLogger.Info("======================================");
         ModLogger.Info($" {VersionInfo.Name} Mod 正在启动...");
         ModLogger.Info("======================================");

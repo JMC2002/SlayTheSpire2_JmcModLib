@@ -1,29 +1,21 @@
-﻿using JmcModLib.Config;
-using JmcModLib.Config.UI;
-using System.Reflection;
+using MegaCrit.Sts2.Core.Logging;
 
-namespace JmcModLib.Utils
+namespace JmcModLib.Core;
+
+internal static class BuildLogLevelSettings
 {
+    private static readonly LogLevel[] SupportedLevels =
+    [
+        LogLevel.VeryDebug,
+        LogLevel.Load,
+        LogLevel.Debug,
+        LogLevel.Info,
+        LogLevel.Warn,
+        LogLevel.Error,
+    ];
 
-    internal partial class BuildLoggerUI
+    internal static IReadOnlyList<LogLevel> GetSupportedLevels()
     {
-        private static class BuildLogLevelSettings
-        {
-            internal static void BuildUI(Assembly asm)
-            {
-                //ConfigManager.RegisterConfig(new UIDropdownAttribute(),
-                //                             "最低打印等级",
-                //                             () => { return ModLogger.GetLogLevel(asm); },
-                //                             lvl => { ModLogger.SetLogLevel(lvl, asm); },
-                //                             DefaultGroup,
-                //                             asm: asm);
-                ConfigManager.RegisterConfig(new UIDropdownAttribute(),
-                                             "最低打印等级",
-                                             ModLogger.GetLogLevel(asm),
-                                             DefaultGroup,
-                                             lvl => { ModLogger.SetLogLevel(lvl, asm); },
-                                             asm);
-            }
-        }
+        return SupportedLevels;
     }
 }

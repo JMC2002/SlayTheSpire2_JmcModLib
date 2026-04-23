@@ -1,0 +1,754 @@
+using System.Globalization;
+using JmcModLib.Config.Entry;
+using Godot;
+using MegaCrit.Sts2.addons.mega_text;
+using MegaCrit.Sts2.Core.Modding;
+using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
+
+namespace JmcModLib.Config.UI;
+
+internal sealed class ModSettingsPanel : NSettingsPanel
+{
+    private readonly Dictionary<string, Action<object?>> bindings = new(StringComparer.Ordinal);
+
+    private const float MinPadding = 50f;
+    private const float ContentWidth = 1120f;
+
+    private CenterContainer? centerRoot;
+    private VBoxContainer? root;
+    private VBoxContainer? listRoot;
+    private bool suppressControlEvents;
+
+    public static ModSettingsPanel Create()
+    {
+        return new ModSettingsPanel
+        {
+            Name = "JmcModLibModSettingsPanel",
+            Visible = false
+        };
+    }
+
+    public override void _Ready()
+    {
+        BuildLayout();
+        Connect(CanvasItem.SignalName.VisibilityChanged, Callable.From(OnVisibilityChange));
+        GetViewport().Connect(Viewport.SignalName.SizeChanged, Callable.From(RefreshPanelSize));
+        ConfigManager.ValueChanged += OnConfigValueChanged;
+        ConfigManager.AssemblyRegistered += OnAssemblyChanged;
+        ConfigManager.AssemblyUnregistered += OnAssemblyChanged;
+        RefreshPanelSize();
+        RebuildContent();
+    }
+
+    public override void _ExitTree()
+    {
+        ConfigManager.ValueChanged -= OnConfigValueChanged;
+        ConfigManager.AssemblyRegistered -= OnAssemblyChanged;
+        ConfigManager.AssemblyUnregistered -= OnAssemblyChanged;
+        base._ExitTree();
+    }
+
+    protected override void OnVisibilityChange()
+    {
+        if (!Visible)
+        {
+            return;
+        }
+
+        RebuildContent();
+        RefreshPanelSize();
+
+        Tween tween = CreateTween().SetParallel();
+        tween.TweenProperty(this, "modulate", Colors.White, 0.35).From(Colors.Transparent)
+            .SetEase(Tween.EaseType.Out)
+            .SetTrans(Tween.TransitionType.Cubic);
+    }
+
+    private void BuildLayout()
+    {
+        this.SetAnchorsPreset(LayoutPreset.TopLeft);
+        SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        SizeFlagsVertical = SizeFlags.ShrinkBegin;
+
+        centerRoot = new CenterContainer
+        {
+            Name = "CenterRoot",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkBegin
+        };
+        AddChild(centerRoot);
+
+        root = new VBoxContainer
+        {
+            Name = "VBoxContainer",
+            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            SizeFlagsVertical = SizeFlags.ShrinkBegin,
+            CustomMinimumSize = new Vector2(ContentWidth, 0f)
+        };
+        root.AddThemeConstantOverride("separation", 14);
+        centerRoot.AddChild(root);
+
+        var title = new MegaRichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = "[gold]模组设置[/gold]"
+        };
+        root.AddChild(title);
+
+        root.AddChild(new RichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = "[color=#aab7bc]在这里直接调整已注册模组的配置项，修改会立即保存。[/color]"
+        });
+
+        root.AddChild(new HSeparator());
+
+        listRoot = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkBegin
+        };
+        listRoot.AddThemeConstantOverride("separation", 12);
+        root.AddChild(listRoot);
+    }
+
+    private void RebuildContent()
+    {
+        if (listRoot == null)
+        {
+            return;
+        }
+
+        foreach (Node child in listRoot.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        bindings.Clear();
+        _firstControl = null;
+
+        List<Mod> modsWithConfig = ModManager.Mods
+            .Where(ModConfigUiBridge.HasConfig)
+            .OrderBy(static mod => mod.manifest?.name ?? mod.manifest?.id ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var focusableControls = new List<Control>();
+
+        if (modsWithConfig.Count == 0)
+        {
+            listRoot.AddChild(BuildNotice("当前没有已注册配置项的模组。"));
+            RefreshPanelSize();
+            return;
+        }
+
+        foreach (Mod mod in modsWithConfig)
+        {
+            listRoot.AddChild(BuildModSection(mod, focusableControls));
+        }
+
+        UpdateFocusMap(focusableControls);
+        RefreshPanelSize();
+    }
+
+    private Control BuildModSection(Mod mod, List<Control> focusableControls)
+    {
+        string name = mod.manifest?.name ?? mod.manifest?.id ?? "Unknown Mod";
+        string version = mod.manifest?.version ?? "unknown";
+        string author = mod.manifest?.author ?? "unknown";
+        string? description = mod.manifest?.description;
+
+        var wrapper = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkBegin
+        };
+        wrapper.AddThemeConstantOverride("separation", 8);
+
+        var header = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
+        wrapper.AddChild(header);
+
+        var title = new RichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = $"[gold]{name}[/gold] [color=#aab7bc]v{version}[/color]"
+        };
+        header.AddChild(title);
+
+        if (mod.assembly != null)
+        {
+            var resetButton = new Button
+            {
+                Text = "重置本模组",
+                FocusMode = FocusModeEnum.All,
+                CustomMinimumSize = new Vector2(150f, 42f)
+            };
+            resetButton.Pressed += () => ResetModConfig(mod.assembly);
+            header.AddChild(resetButton);
+            focusableControls.Add(resetButton);
+        }
+
+        wrapper.AddChild(new RichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = $"[color=#aab7bc]作者:[/color] {author}"
+        });
+
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            wrapper.AddChild(new RichTextLabel
+            {
+                BbcodeEnabled = true,
+                FitContent = true,
+                ScrollActive = false,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                Text = $"[color=#d0d8dc]{description}[/color]"
+            });
+        }
+
+        if (mod.assembly == null)
+        {
+            wrapper.AddChild(BuildNotice("该模组未加载托管程序集，无法显示配置。"));
+            wrapper.AddChild(new HSeparator());
+            return wrapper;
+        }
+
+        IReadOnlyCollection<ConfigEntry> entries = ConfigManager.GetEntries(mod.assembly);
+        if (entries.Count == 0)
+        {
+            wrapper.AddChild(BuildNotice("该模组当前没有可显示的配置项。"));
+            wrapper.AddChild(new HSeparator());
+            return wrapper;
+        }
+
+        List<string> groups = ConfigManager.GetGroups(mod.assembly).ToList();
+        bool hideDefaultGroupHeader = groups.Count == 1 && groups[0] == ConfigAttribute.DefaultGroup;
+
+        foreach (string group in groups)
+        {
+            if (!hideDefaultGroupHeader)
+            {
+                wrapper.AddChild(BuildGroupHeader(group));
+            }
+
+            foreach (ConfigEntry entry in ConfigManager.GetEntries(group, mod.assembly))
+            {
+                wrapper.AddChild(BuildEntryRow(entry, focusableControls));
+            }
+        }
+
+        wrapper.AddChild(new HSeparator());
+        return wrapper;
+    }
+
+    private Control BuildNotice(string text)
+    {
+        return new RichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = $"[color=#d0d8dc]{text}[/color]"
+        };
+    }
+
+    private Control BuildGroupHeader(string group)
+    {
+        var wrapper = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
+
+        wrapper.AddChild(new RichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = $"[color=#e0b24f]{group}[/color]"
+        });
+        wrapper.AddChild(new HSeparator());
+        return wrapper;
+    }
+
+    private Control BuildEntryRow(ConfigEntry entry, List<Control> focusableControls)
+    {
+        var wrapper = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
+        wrapper.AddThemeConstantOverride("separation", 6);
+
+        var topRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
+        wrapper.AddChild(topRow);
+
+        var labelColumn = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkBegin
+        };
+        topRow.AddChild(labelColumn);
+
+        labelColumn.AddChild(new RichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = $"[b]{entry.DisplayName}[/b]"
+        });
+
+        if (!string.IsNullOrWhiteSpace(entry.Attribute.Description))
+        {
+            labelColumn.AddChild(new RichTextLabel
+            {
+                BbcodeEnabled = true,
+                FitContent = true,
+                ScrollActive = false,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                Text = $"[color=#aab7bc]{entry.Attribute.Description}[/color]"
+            });
+        }
+
+        if (entry.Attribute.RestartRequired)
+        {
+            labelColumn.AddChild(new RichTextLabel
+            {
+                BbcodeEnabled = true,
+                FitContent = true,
+                ScrollActive = false,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                Text = "[color=#e0b24f]需要重启游戏后完全生效。[/color]"
+            });
+        }
+
+        Control editor = BuildEditor(entry, focusableControls);
+        editor.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+        topRow.AddChild(editor);
+
+        wrapper.AddChild(new HSeparator());
+        return wrapper;
+    }
+
+    private Control BuildEditor(ConfigEntry entry, List<Control> focusableControls)
+    {
+        Type valueType = Nullable.GetUnderlyingType(entry.ValueType) ?? entry.ValueType;
+        UIConfigAttribute? uiAttribute = entry.UIAttribute;
+
+        if (valueType == typeof(bool))
+        {
+            return BuildBooleanEditor(entry, focusableControls);
+        }
+
+        if (uiAttribute is UIDropdownAttribute dropdownAttribute)
+        {
+            return BuildDropdownEditor(entry, dropdownAttribute, valueType, focusableControls);
+        }
+
+        if (valueType.IsEnum)
+        {
+            return BuildDropdownEditor(entry, null, valueType, focusableControls);
+        }
+
+        if (valueType == typeof(string))
+        {
+            return BuildStringEditor(entry, focusableControls);
+        }
+
+        if (IsNumericType(valueType) && uiAttribute is ISliderConfigAttribute sliderAttribute)
+        {
+            return BuildSliderEditor(entry, sliderAttribute, valueType, focusableControls);
+        }
+
+        if (IsNumericType(valueType))
+        {
+            return BuildSpinBoxEditor(entry, valueType, focusableControls);
+        }
+
+        return new RichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            CustomMinimumSize = new Vector2(240f, 0f),
+            Text = $"[color=#d07f7f]Unsupported type: {valueType.Name}[/color]"
+        };
+    }
+
+    private Control BuildBooleanEditor(ConfigEntry entry, List<Control> focusableControls)
+    {
+        var checkbox = new CheckBox
+        {
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(220f, 0f),
+            ButtonPressed = ToBoolean(entry.GetValue())
+        };
+
+        checkbox.Toggled += toggled =>
+        {
+            if (!suppressControlEvents)
+            {
+                TrySetEntryValue(entry, toggled);
+            }
+        };
+
+        bindings[CreateBindingKey(entry)] = rawValue =>
+        {
+            suppressControlEvents = true;
+            checkbox.ButtonPressed = ToBoolean(rawValue);
+            suppressControlEvents = false;
+        };
+
+        focusableControls.Add(checkbox);
+        return checkbox;
+    }
+
+    private Control BuildStringEditor(ConfigEntry entry, List<Control> focusableControls)
+    {
+        var lineEdit = new LineEdit
+        {
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(260f, 0f),
+            Text = entry.GetValue()?.ToString() ?? string.Empty
+        };
+
+        void Commit()
+        {
+            if (!suppressControlEvents)
+            {
+                TrySetEntryValue(entry, lineEdit.Text);
+            }
+        }
+
+        lineEdit.TextSubmitted += _ => Commit();
+        lineEdit.FocusExited += Commit;
+
+        bindings[CreateBindingKey(entry)] = rawValue =>
+        {
+            suppressControlEvents = true;
+            lineEdit.Text = rawValue?.ToString() ?? string.Empty;
+            suppressControlEvents = false;
+        };
+
+        focusableControls.Add(lineEdit);
+        return lineEdit;
+    }
+
+    private Control BuildDropdownEditor(
+        ConfigEntry entry,
+        UIDropdownAttribute? dropdownAttribute,
+        Type valueType,
+        List<Control> focusableControls)
+    {
+        var dropdown = new OptionButton
+        {
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(260f, 0f)
+        };
+
+        IReadOnlyList<string> options = valueType.IsEnum
+            ? Enum.GetNames(valueType)
+                .Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)
+                .ToArray()
+            : dropdownAttribute?.Options.Count > 0
+                ? dropdownAttribute.Options
+                : [entry.GetValue()?.ToString() ?? string.Empty];
+
+        if (options.Count == 0)
+        {
+            options = [entry.GetValue()?.ToString() ?? string.Empty];
+        }
+
+        for (int i = 0; i < options.Count; i++)
+        {
+            dropdown.AddItem(options[i], i);
+        }
+
+        dropdown.ItemSelected += index =>
+        {
+            if (suppressControlEvents)
+            {
+                return;
+            }
+
+            string selectedText = dropdown.GetItemText((int)index);
+            object? converted = valueType.IsEnum
+                ? Enum.Parse(valueType, selectedText, ignoreCase: true)
+                : selectedText;
+            TrySetEntryValue(entry, converted);
+        };
+
+        bindings[CreateBindingKey(entry)] = rawValue =>
+        {
+            string selectedText = rawValue?.ToString() ?? string.Empty;
+            int index = options
+                .Select((text, i) => new { text, i })
+                .FirstOrDefault(item => string.Equals(item.text, selectedText, StringComparison.OrdinalIgnoreCase))?.i ?? 0;
+
+            suppressControlEvents = true;
+            dropdown.Select(index);
+            suppressControlEvents = false;
+        };
+
+        bindings[CreateBindingKey(entry)](entry.GetValue());
+        focusableControls.Add(dropdown);
+        return dropdown;
+    }
+
+    private Control BuildSpinBoxEditor(ConfigEntry entry, Type valueType, List<Control> focusableControls)
+    {
+        var spinBox = new SpinBox
+        {
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(220f, 0f),
+            MinValue = GetMinNumericValue(valueType),
+            MaxValue = GetMaxNumericValue(valueType),
+            Step = valueType == typeof(float) || valueType == typeof(double) || valueType == typeof(decimal) ? 0.1 : 1.0
+        };
+
+        spinBox.ValueChanged += value =>
+        {
+            if (suppressControlEvents)
+            {
+                return;
+            }
+
+            object converted = ConfigValueConverter.Convert(value, valueType)!;
+            TrySetEntryValue(entry, converted);
+        };
+
+        bindings[CreateBindingKey(entry)] = rawValue =>
+        {
+            double numericValue = System.Convert.ToDouble(ConfigValueConverter.Convert(rawValue, valueType), CultureInfo.InvariantCulture);
+            suppressControlEvents = true;
+            spinBox.Value = numericValue;
+            suppressControlEvents = false;
+        };
+
+        bindings[CreateBindingKey(entry)](entry.GetValue());
+        focusableControls.Add(spinBox);
+        return spinBox;
+    }
+
+    private Control BuildSliderEditor(
+        ConfigEntry entry,
+        ISliderConfigAttribute sliderAttribute,
+        Type valueType,
+        List<Control> focusableControls)
+    {
+        var wrapper = new HBoxContainer
+        {
+            CustomMinimumSize = new Vector2(320f, 0f)
+        };
+
+        var slider = new HSlider
+        {
+            FocusMode = FocusModeEnum.All,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MinValue = sliderAttribute.Min,
+            MaxValue = sliderAttribute.Max,
+            Step = sliderAttribute.Step
+        };
+        wrapper.AddChild(slider);
+
+        var valueLabel = new Label
+        {
+            CustomMinimumSize = new Vector2(70f, 0f),
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        wrapper.AddChild(valueLabel);
+
+        slider.ValueChanged += value =>
+        {
+            valueLabel.Text = FormatNumericValue(value, valueType);
+            if (suppressControlEvents)
+            {
+                return;
+            }
+
+            object converted = ConfigValueConverter.Convert(value, valueType)!;
+            TrySetEntryValue(entry, converted);
+        };
+
+        bindings[CreateBindingKey(entry)] = rawValue =>
+        {
+            double numericValue = System.Convert.ToDouble(ConfigValueConverter.Convert(rawValue, valueType), CultureInfo.InvariantCulture);
+            suppressControlEvents = true;
+            slider.Value = numericValue;
+            valueLabel.Text = FormatNumericValue(numericValue, valueType);
+            suppressControlEvents = false;
+        };
+
+        bindings[CreateBindingKey(entry)](entry.GetValue());
+        focusableControls.Add(slider);
+        return wrapper;
+    }
+
+    private void ResetModConfig(System.Reflection.Assembly assembly)
+    {
+        ConfigManager.ResetAssembly(assembly);
+        RebuildContent();
+    }
+
+    private void TrySetEntryValue(ConfigEntry entry, object? rawValue)
+    {
+        try
+        {
+            object? converted = ConfigValueConverter.Convert(rawValue, entry.ValueType);
+            entry.SetValue(converted);
+        }
+        catch (Exception ex)
+        {
+            ModLogger.Error($"Failed to update config entry {entry.Key}", ex, entry.Assembly);
+            if (bindings.TryGetValue(CreateBindingKey(entry), out Action<object?>? updateBinding))
+            {
+                updateBinding(entry.GetValue());
+            }
+        }
+    }
+
+    private void OnConfigValueChanged(ConfigEntry entry, object? value)
+    {
+        if (bindings.TryGetValue(CreateBindingKey(entry), out Action<object?>? updateBinding))
+        {
+            updateBinding(value);
+        }
+    }
+
+    private void OnAssemblyChanged(System.Reflection.Assembly _)
+    {
+        if (Visible)
+        {
+            RebuildContent();
+        }
+    }
+
+    private void RefreshPanelSize()
+    {
+        if (root == null || centerRoot == null)
+        {
+            return;
+        }
+
+        Control? parent = GetParent<Control>();
+        if (parent == null)
+        {
+            return;
+        }
+
+        Vector2 parentSize = parent.Size;
+        Vector2 minimumSize = centerRoot.GetMinimumSize();
+        float width = Math.Min(parentSize.X, Math.Max(ContentWidth, minimumSize.X));
+        Size = minimumSize.Y + MinPadding >= parentSize.Y
+            ? new Vector2(width, minimumSize.Y + parentSize.Y * 0.4f)
+            : new Vector2(width, minimumSize.Y);
+        Position = new Vector2(Mathf.Max((parentSize.X - Size.X) * 0.5f, 0f), Position.Y);
+    }
+
+    private void UpdateFocusMap(List<Control> focusableControls)
+    {
+        if (focusableControls.Count == 0)
+        {
+            _firstControl = null;
+            return;
+        }
+
+        _firstControl = focusableControls[0];
+
+        for (int i = 0; i < focusableControls.Count; i++)
+        {
+            Control current = focusableControls[i];
+            Control previous = i > 0 ? focusableControls[i - 1] : current;
+            Control next = i < focusableControls.Count - 1 ? focusableControls[i + 1] : current;
+
+            current.FocusMode = FocusModeEnum.All;
+            current.FocusNeighborLeft = current.GetPath();
+            current.FocusNeighborRight = current.GetPath();
+            current.FocusNeighborTop = previous.GetPath();
+            current.FocusNeighborBottom = next.GetPath();
+        }
+    }
+
+    private static string CreateBindingKey(ConfigEntry entry)
+    {
+        return $"{entry.Assembly.FullName}::{entry.Key}";
+    }
+
+    private static bool IsNumericType(Type type)
+    {
+        return type == typeof(byte)
+            || type == typeof(sbyte)
+            || type == typeof(short)
+            || type == typeof(ushort)
+            || type == typeof(int)
+            || type == typeof(uint)
+            || type == typeof(long)
+            || type == typeof(ulong)
+            || type == typeof(float)
+            || type == typeof(double)
+            || type == typeof(decimal);
+    }
+
+    private static double GetMinNumericValue(Type type)
+    {
+        if (type == typeof(byte)) return byte.MinValue;
+        if (type == typeof(sbyte)) return sbyte.MinValue;
+        if (type == typeof(short)) return short.MinValue;
+        if (type == typeof(ushort)) return ushort.MinValue;
+        if (type == typeof(int)) return int.MinValue;
+        if (type == typeof(uint)) return uint.MinValue;
+        if (type == typeof(long)) return long.MinValue;
+        if (type == typeof(ulong)) return 0;
+        return -1000000;
+    }
+
+    private static double GetMaxNumericValue(Type type)
+    {
+        if (type == typeof(byte)) return byte.MaxValue;
+        if (type == typeof(sbyte)) return sbyte.MaxValue;
+        if (type == typeof(short)) return short.MaxValue;
+        if (type == typeof(ushort)) return ushort.MaxValue;
+        if (type == typeof(int)) return int.MaxValue;
+        if (type == typeof(uint)) return uint.MaxValue;
+        if (type == typeof(long)) return long.MaxValue;
+        if (type == typeof(ulong)) return 1000000;
+        return 1000000;
+    }
+
+    private static string FormatNumericValue(double value, Type valueType)
+    {
+        if (valueType == typeof(float) || valueType == typeof(double) || valueType == typeof(decimal))
+        {
+            return value.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+
+        return Math.Round(value).ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static bool ToBoolean(object? value)
+    {
+        return value switch
+        {
+            bool b => b,
+            null => false,
+            _ => System.Convert.ToBoolean(value, CultureInfo.InvariantCulture)
+        };
+    }
+}

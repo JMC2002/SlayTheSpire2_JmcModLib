@@ -1,0 +1,191 @@
+namespace JmcModLib.Config.UI;
+
+/// <summary>
+/// Base metadata attribute for later in-game config UI bridging.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
+public abstract class UIConfigAttribute : Attribute
+{
+    public virtual bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
+    {
+        errorMessage = null;
+        return true;
+    }
+}
+
+public abstract class UIConfigAttribute<TValue> : UIConfigAttribute
+{
+    public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
+    {
+        if (valueType != typeof(TValue))
+        {
+            errorMessage =
+                $"{GetType().Name} only supports {typeof(TValue).FullName}, but the config value is {valueType.FullName}.";
+            return false;
+        }
+
+        errorMessage = null;
+        return true;
+    }
+}
+
+public sealed class UIToggleAttribute : UIConfigAttribute<bool>
+{
+}
+
+public sealed class UIInputAttribute(int characterLimit = 0, bool multiline = false) : UIConfigAttribute<string>
+{
+    public int CharacterLimit { get; } = characterLimit;
+
+    public bool Multiline { get; } = multiline;
+}
+
+public interface ISliderConfigAttribute
+{
+    double Min { get; }
+
+    double Max { get; }
+
+    double Step { get; }
+}
+
+public sealed class UISliderAttribute(double min, double max, double step = 1.0) : UIConfigAttribute, ISliderConfigAttribute
+{
+    public double Min { get; } = min;
+
+    public double Max { get; } = max;
+
+    public double Step { get; } = step;
+
+    public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
+    {
+        if (!IsNumericType(valueType))
+        {
+            errorMessage = $"{GetType().Name} only supports numeric config values, but received {valueType.FullName}.";
+            return false;
+        }
+
+        if (Max < Min)
+        {
+            errorMessage = $"{GetType().Name} requires Max >= Min.";
+            return false;
+        }
+
+        if (Step <= 0)
+        {
+            errorMessage = $"{GetType().Name} requires Step > 0.";
+            return false;
+        }
+
+        errorMessage = null;
+        return true;
+    }
+
+    private static bool IsNumericType(Type type)
+    {
+        Type actualType = Nullable.GetUnderlyingType(type) ?? type;
+        return actualType == typeof(byte)
+            || actualType == typeof(sbyte)
+            || actualType == typeof(short)
+            || actualType == typeof(ushort)
+            || actualType == typeof(int)
+            || actualType == typeof(uint)
+            || actualType == typeof(long)
+            || actualType == typeof(ulong)
+            || actualType == typeof(float)
+            || actualType == typeof(double)
+            || actualType == typeof(decimal);
+    }
+}
+
+public sealed class UIIntSliderAttribute(int min, int max, int characterLimit = 5) : UIConfigAttribute<int>, ISliderConfigAttribute
+{
+    public int CharacterLimit { get; } = characterLimit;
+
+    public double Min { get; } = min;
+
+    public double Max { get; } = max;
+
+    public double Step { get; } = 1.0;
+
+    public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
+    {
+        if (valueType != typeof(int))
+        {
+            errorMessage =
+                $"{GetType().Name} only supports {typeof(int).FullName}, but the config value is {valueType.FullName}.";
+            return false;
+        }
+
+        if (Max < Min)
+        {
+            errorMessage = $"{GetType().Name} requires Max >= Min.";
+            return false;
+        }
+
+        errorMessage = null;
+        return true;
+    }
+}
+
+public sealed class UIFloatSliderAttribute(
+    float min,
+    float max,
+    int decimalPlaces = 1,
+    int characterLimit = 5) : UIConfigAttribute<float>, ISliderConfigAttribute
+{
+    public int DecimalPlaces { get; } = decimalPlaces;
+
+    public int CharacterLimit { get; } = characterLimit;
+
+    public double Min { get; } = min;
+
+    public double Max { get; } = max;
+
+    public double Step => Math.Pow(10, -Math.Max(0, DecimalPlaces));
+
+    public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
+    {
+        if (valueType != typeof(float))
+        {
+            errorMessage =
+                $"{GetType().Name} only supports {typeof(float).FullName}, but the config value is {valueType.FullName}.";
+            return false;
+        }
+
+        if (Max < Min)
+        {
+            errorMessage = $"{GetType().Name} requires Max >= Min.";
+            return false;
+        }
+
+        if (DecimalPlaces < 0)
+        {
+            errorMessage = $"{GetType().Name} requires DecimalPlaces >= 0.";
+            return false;
+        }
+
+        errorMessage = null;
+        return true;
+    }
+}
+
+public sealed class UIDropdownAttribute(params string[]? exclude) : UIConfigAttribute
+{
+    public IReadOnlyList<string> Options { get; } = exclude ?? [];
+
+    public IReadOnlyList<string> Exclude { get; } = exclude ?? [];
+
+    public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
+    {
+        Type actualType = Nullable.GetUnderlyingType(valueType) ?? valueType;
+        if (actualType == typeof(string) || actualType.IsEnum)
+        {
+            errorMessage = null;
+            return true;
+        }
+
+        errorMessage = $"{GetType().Name} only supports string or enum config values, but received {valueType.FullName}.";
+        return false;
+    }
+}

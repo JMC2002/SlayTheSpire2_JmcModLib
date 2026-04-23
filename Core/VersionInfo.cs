@@ -1,9 +1,37 @@
-﻿namespace JmcModLib.Core;
+using System.Reflection;
+
+namespace JmcModLib.Core;
 
 public static class VersionInfo
 {
     public const string Name = "JmcModLib";
-    public const string Version = "1.0.0";
+    public const string Version = "1.0.4";
 
     public static string Tag => $"[{Name} v{Version}]";
+
+    public static string GetName(Assembly? assembly = null)
+    {
+        assembly ??= typeof(VersionInfo).Assembly;
+        return assembly == typeof(VersionInfo).Assembly
+            ? Name
+            : assembly.GetName().Name ?? Name;
+    }
+
+    public static string GetVersion(Assembly? assembly = null)
+    {
+        assembly ??= typeof(VersionInfo).Assembly;
+        if (assembly == typeof(VersionInfo).Assembly)
+        {
+            return Version;
+        }
+
+        return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString()
+            ?? "0.0.0";
+    }
+
+    public static string GetTag(Assembly? assembly = null)
+    {
+        return $"[{GetName(assembly)} v{GetVersion(assembly)}]";
+    }
 }

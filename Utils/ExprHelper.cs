@@ -196,7 +196,7 @@ public static class ExprHelper
         object? target = null;
         if (!isStatic)
         {
-            var targetGetter = Expression.Lambda<Func<object>>(Expression.Convert(targetExpr, typeof(object))).Compile();
+            var targetGetter = Expression.Lambda<Func<object>>(Expression.Convert(targetExpr!, typeof(object))).Compile();
             target = targetGetter() ?? throw new InvalidOperationException("实例对象不能为空");
         }
 

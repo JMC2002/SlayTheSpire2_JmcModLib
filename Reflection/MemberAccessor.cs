@@ -583,7 +583,7 @@ namespace JmcModLib.Reflection
                     new DynamicMethod($"get_{f.Name}",
                                       typeof(object),
                                       [typeof(object)],
-                                      f.DeclaringType,
+                                      f.DeclaringType!,
                                       true) :
                     new DynamicMethod($"get_{f.Name}",
                                       typeof(object),
@@ -657,7 +657,7 @@ namespace JmcModLib.Reflection
                     new DynamicMethod($"set_{f.Name}",
                                       null,
                                       [typeof(object), typeof(object)],
-                                      f.DeclaringType,
+                                      f.DeclaringType!,
                                       true) :
                     new DynamicMethod($"set_{f.Name}",
                                       null,

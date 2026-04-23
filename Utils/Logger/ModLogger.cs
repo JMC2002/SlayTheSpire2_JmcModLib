@@ -1,538 +1,332 @@
-﻿using JmcModLib.Config.UI;
-using JmcModLib.Core;
-using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using static UnityEngine.Rendering.DebugUI;
+using MegaCrit.Sts2.Core.Logging;
 
-namespace JmcModLib.Utils
+namespace JmcModLib.Core;
+
+[Flags]
+public enum LogPrefixFlags
 {
-    /// <summary>
-    /// 打印级别
-    /// </summary>
-    public enum LogLevel
+    None = 0,
+    Timestamp = 1 << 0,
+    Default = Timestamp,
+}
+
+public sealed class AssemblyLogConfiguration
+{
+    public LogLevel MinimumLevel { get; set; } = LogLevel.Info;
+
+    public LogType LogType { get; set; } = LogType.Generic;
+
+    public LogPrefixFlags PrefixFlags { get; set; } = LogPrefixFlags.Default;
+
+    public bool ThrowOnFatal { get; set; } = true;
+
+    public bool IncludeExceptionDetails { get; set; } = true;
+}
+
+public readonly record struct LoggerSnapshot(
+    LogLevel MinimumLevel,
+    LogType LogType,
+    LogPrefixFlags PrefixFlags,
+    bool ThrowOnFatal,
+    bool IncludeExceptionDetails,
+    string Context);
+
+/// <summary>
+/// Thin wrapper over STS2's logger with per-assembly configuration.
+/// </summary>
+public static partial class ModLogger
+{
+    private readonly record struct LoggerHandle(LogType Type, Logger Logger);
+
+    private static readonly object NativeLoggerLock = typeof(Logger)
+        .GetField("_lockObj", BindingFlags.NonPublic | BindingFlags.Static)?
+        .GetValue(null) as object ?? new object();
+
+    private static readonly ConcurrentDictionary<Assembly, LoggerHandle> Loggers = new();
+    private static readonly ConcurrentDictionary<Assembly, AssemblyLogConfiguration> Configurations = new();
+
+    public static LogLevel DefaultLogLevel { get; set; } = LogLevel.Info;
+
+    public static LogType DefaultLogType { get; set; } = LogType.Generic;
+
+    public static LogPrefixFlags DefaultPrefixFlags { get; set; } = LogPrefixFlags.Default;
+
+    public static bool DefaultThrowOnFatal { get; set; } = true;
+
+    public static bool DefaultIncludeExceptionDetails { get; set; } = true;
+
+    public static void RegisterAssembly(
+        Assembly? assembly = null,
+        LogLevel minimumLevel = LogLevel.Info,
+        LogPrefixFlags prefixFlags = LogPrefixFlags.Default,
+        bool throwOnFatal = true,
+        LogType logType = LogType.Generic,
+        bool includeExceptionDetails = true,
+        LogConfigUIFlags uiFlags = LogConfigUIFlags.None)
     {
-        /// <summary> 不打印任何，低于任何等级 </summary>
-        None = int.MinValue,
+        assembly = ResolveAssembly(assembly);
+        AssemblyLogConfiguration configuration = Configurations.GetOrAdd(assembly, _ => CreateDefaultConfiguration());
+        configuration.MinimumLevel = minimumLevel;
+        configuration.PrefixFlags = prefixFlags;
+        configuration.ThrowOnFatal = throwOnFatal;
+        configuration.LogType = logType;
+        configuration.IncludeExceptionDetails = includeExceptionDetails;
 
-        /// <summary> 主要用于打印出函数入函数 </summary>
-        Trace = 1,
-
-        /// <summary> Debug </summary>
-        Debug = 2,
-
-        /// <summary> Info </summary>
-        Info = 3,
-
-        /// <summary> Warn </summary>
-        Warn = 4,
-
-        /// <summary> Error </summary>
-        Error = 5,
-
-        /// <summary> Fatal 错误，在Debug模式下会抛出异常，在Release模式下会打印信息 </summary>
-        Fatal = 6,
-
-        /// <summary> 高于所有等级 </summary>
-        All = int.MaxValue
+        BuildLoggerUI.BuildUI(assembly, uiFlags);
+        _ = GetLogger(assembly);
     }
 
-    /// <summary>
-    /// 日志格式配置项（位标志）
-    /// </summary>
-    [Flags]
-    public enum LogFormatFlags : uint
+    public static void UnregisterAssembly(Assembly? assembly = null)
     {
-        /// <summary> 不显示任何东西，占位 </summary>
-        None = 0,
-        /// <summary>显示时间戳</summary>
-        Timestamp = 1 << 0,
-        /// <summary>显示日志等级</summary>
-        Level = 1 << 1,
-        /// <summary>显示调用方法名</summary>
-        Caller = 1 << 2,
-        /// <summary>显示行号</summary>
-        LineNumber = 1 << 3,
-        /// <summary>显示文件路径</summary>
-        FilePath = 1 << 4,
-        /// <summary>显示 TAG（从 ModRegistry 获取）</summary>
-        Tag = 1 << 5,
-
-        /// <summary>显示调用栈（仅函数名）</summary>
-        StackTrace = 1 << 6,
-
-        /// <summary>彩色输出（仅限支持的终端）</summary>
-        Colored = 1 << 7,
-
-        /// <summary>默认格式：TAG + 时间戳 + 等级 + 调用方法 + 行号</summary>
-        Default = Tag | Timestamp | Level | Caller | LineNumber,
-        /// <summary>完整格式：包含所有信息</summary>
-        All = Tag | Timestamp | Level | Caller | LineNumber | FilePath,
-        /// <summary>精简格式：只有等级和消息</summary>
-        Minimal = Level
+        assembly = ResolveAssembly(assembly);
+        Configurations.TryRemove(assembly, out _);
+        Loggers.TryRemove(assembly, out _);
     }
 
-    /// <summary>
-    /// 单个 Assembly 的日志配置
-    /// </summary>
-    public class AssemblyLoggerConfig
+    public static LogLevel GetLogLevel(Assembly? assembly = null)
     {
-        /// <summary>
-        /// 该 Assembly 的最低输出等级
-        /// </summary>
-        public LogLevel MinLevel { get; set; } = LogLevel.Info;
-
-        /// <summary>
-        /// 日志格式配置
-        /// </summary>
-        public LogFormatFlags FormatFlags { get; set; } = LogFormatFlags.Default;
+        return GetOrCreateConfiguration(ResolveAssembly(assembly)).MinimumLevel;
     }
 
-    /// <summary>
-    /// 一个打印类
-    /// </summary>
-    public static partial class ModLogger
+    public static void SetLogLevel(LogLevel level, Assembly? assembly = null)
     {
-        // 全局配置
-        private static readonly LogLevel _globalMinLevel = LogLevel.Info;
-        private static readonly LogFormatFlags _globalFormatFlags = LogFormatFlags.Default;
-        private static readonly Dictionary<Assembly, AssemblyLoggerConfig> _assemblyConfigs = [];
-        private static readonly Dictionary<Assembly, bool> DebugCache = [];
+        GetOrCreateConfiguration(ResolveAssembly(assembly)).MinimumLevel = level;
+    }
 
-        /// <summary> 默认等级 </summary>
-        public const LogLevel DefaultLogLevel = LogLevel.Info;
-        private static bool IsAssemblyDebugBuild(Assembly asm)
+    public static LogType GetLogType(Assembly? assembly = null)
+    {
+        return GetOrCreateConfiguration(ResolveAssembly(assembly)).LogType;
+    }
+
+    public static void SetLogType(LogType logType, Assembly? assembly = null)
+    {
+        assembly = ResolveAssembly(assembly);
+        GetOrCreateConfiguration(assembly).LogType = logType;
+        Loggers.TryRemove(assembly, out _);
+    }
+
+    public static LogPrefixFlags GetPrefixFlags(Assembly? assembly = null)
+    {
+        return GetOrCreateConfiguration(ResolveAssembly(assembly)).PrefixFlags;
+    }
+
+    public static void SetPrefixFlags(LogPrefixFlags flags, Assembly? assembly = null)
+    {
+        GetOrCreateConfiguration(ResolveAssembly(assembly)).PrefixFlags = flags;
+    }
+
+    public static bool HasPrefixFlag(LogPrefixFlags flag, Assembly? assembly = null)
+    {
+        return (GetPrefixFlags(assembly) & flag) != 0;
+    }
+
+    public static void TogglePrefixFlag(LogPrefixFlags flag, Assembly? assembly = null)
+    {
+        assembly = ResolveAssembly(assembly);
+        AssemblyLogConfiguration configuration = GetOrCreateConfiguration(assembly);
+        configuration.PrefixFlags ^= flag;
+    }
+
+    public static LoggerSnapshot GetSnapshot(Assembly? assembly = null)
+    {
+        assembly = ResolveAssembly(assembly);
+        AssemblyLogConfiguration configuration = GetOrCreateConfiguration(assembly);
+        return new LoggerSnapshot(
+            configuration.MinimumLevel,
+            configuration.LogType,
+            configuration.PrefixFlags,
+            configuration.ThrowOnFatal,
+            configuration.IncludeExceptionDetails,
+            ResolveContext(assembly));
+    }
+
+    public static void Load(string message, Assembly? assembly = null)
+    {
+        Log(LogLevel.Load, message, null, ResolveAssembly(assembly));
+    }
+
+    public static void Trace(string message, Assembly? assembly = null)
+    {
+        Log(LogLevel.VeryDebug, message, null, ResolveAssembly(assembly));
+    }
+
+    public static void Debug(string message, Assembly? assembly = null)
+    {
+        Log(LogLevel.Debug, message, null, ResolveAssembly(assembly));
+    }
+
+    public static void Info(string message, Assembly? assembly = null)
+    {
+        Log(LogLevel.Info, message, null, ResolveAssembly(assembly));
+    }
+
+    public static void Warn(string message, Assembly? assembly = null)
+    {
+        Log(LogLevel.Warn, message, null, ResolveAssembly(assembly));
+    }
+
+    public static void Warn(string message, Exception exception, Assembly? assembly = null)
+    {
+        Log(LogLevel.Warn, message, exception, ResolveAssembly(assembly));
+    }
+
+    public static void Error(string message, Assembly? assembly = null)
+    {
+        Log(LogLevel.Error, message, null, ResolveAssembly(assembly));
+    }
+
+    public static void Error(string message, Exception exception, Assembly? assembly = null)
+    {
+        Log(LogLevel.Error, message, exception, ResolveAssembly(assembly));
+    }
+
+    public static void Fatal(Exception exception, string? message = null, Assembly? assembly = null)
+    {
+        assembly = ResolveAssembly(assembly);
+        Log(LogLevel.Error, message ?? "Fatal error.", exception, assembly);
+        if (GetOrCreateConfiguration(assembly).ThrowOnFatal)
         {
-            if (DebugCache.TryGetValue(asm, out var result))
-                return result;
+            throw exception;
+        }
+    }
 
-            var attr = asm.GetCustomAttribute<System.Diagnostics.DebuggableAttribute>();
-            result = attr != null && (attr.IsJITTrackingEnabled || attr.IsJITOptimizerDisabled);
-            DebugCache[asm] = result;
-            return result;
+    private static void Log(LogLevel level, string? message, Exception? exception, Assembly assembly)
+    {
+        AssemblyLogConfiguration configuration = GetOrCreateConfiguration(assembly);
+        if (!ShouldLog(level, configuration))
+        {
+            return;
         }
 
-        /// <summary>
-        /// 获取或创建指定 Assembly 的配置
-        /// </summary>
-        private static AssemblyLoggerConfig GetOrCreateConfig(Assembly asm)
+        Logger logger = GetLogger(assembly);
+        string text = Format(message, assembly, exception, configuration);
+
+        lock (NativeLoggerLock)
         {
-            if (!_assemblyConfigs.TryGetValue(asm, out var config))
+            LogType logType = configuration.LogType;
+            bool hadOverride = Logger.logLevelTypeMap.TryGetValue(logType, out LogLevel previousLevel);
+            LogLevel currentThreshold = hadOverride ? previousLevel : Logger.GlobalLogLevel;
+            bool shouldTemporarilyLowerThreshold = level < currentThreshold;
+
+            if (shouldTemporarilyLowerThreshold)
             {
-                config = new AssemblyLoggerConfig();
-                _assemblyConfigs[asm] = config;
-                Debug($"为 {ModRegistry.GetTag(asm)} 新建日志配置成功");
+                Logger.SetLogLevelForType(logType, level);
             }
-            return config;
-        }
 
-        private static string GetCallStackPath(int maxDepth = 5)
-        {
-            var st = new System.Diagnostics.StackTrace(skipFrames: 4, fNeedFileInfo: false);
-            var frames = st.GetFrames();
-            if (frames == null) return "";
-
-            var names = new List<string>();
-
-            for (int i = 0; i < frames.Length && i < maxDepth; i++)
+            try
             {
-                var method = frames[i].GetMethod();
-                if (method == null) continue;
-
-                string name = method.Name;
-
-                // 去掉编译器生成的方法等
-                if (name.StartsWith("<")) continue;
-
-                names.Add(name);
+                logger.LogMessage(level, text, skipFrames: 2);
             }
-
-            return string.Join(" -> ", names);
-        }
-
-        /// <summary>
-        /// 颜色模式（订阅最多的那个控制台用不了，留接口）
-        /// </summary>
-        public enum ColorMode
-        {
-            /// <summary> 无 </summary>
-            None,
-            /// <summary> Unity </summary>
-            Unity,
-            /// <summary> Ansi </summary>
-            Ansi
-        }
-
-        /// <summary>
-        /// 控制输出的颜色，需要终端支持
-        /// </summary>
-        internal static class ModLoggerColor
-        {
-            /// <summary>
-            /// 当前颜色模式
-            /// </summary>
-            internal static ColorMode Mode = ColorMode.None; // 订阅最多的用不了，先默认禁用
-
-            //[UIButton("切换颜色模式", "切换")]
-            //private static void SwitchColorMode()
-            //{
-            //    Mode = Mode switch
-            //    {
-            //        ColorMode.Unity => ColorMode.Ansi,      // 轮换
-            //        ColorMode.Ansi => ColorMode.None,
-            //        _ => ColorMode.Unity
-            //    };
-            //}
-
-            private static string LevelHex(LogLevel level) => level switch
+            finally
             {
-                LogLevel.Trace => "#888888",
-                LogLevel.Debug => "#7fbfff",
-                LogLevel.Info => "white",
-                LogLevel.Warn => "yellow",
-                LogLevel.Error => "red",
-                LogLevel.Fatal => "#ff55ff",
-                _ => "white"
-            };
-
-            private static string LevelAnsi(LogLevel level) => level switch
-            {
-                LogLevel.Trace => "90",   // 灰
-                LogLevel.Debug => "94",   // 蓝
-                LogLevel.Info => "97",   // 白
-                LogLevel.Warn => "93",   // 黄
-                LogLevel.Error => "91",   // 红
-                LogLevel.Fatal => "95",   // 品红
-                _ => "97"
-            };
-
-            /// <summary>
-            /// 根据打印等级渲染对应的颜色
-            /// </summary>
-            internal static string ColorizeLevel(LogLevel level, string msg)
-            {
-                return Mode switch
+                if (shouldTemporarilyLowerThreshold)
                 {
-                    ColorMode.Unity => $"<color={LevelHex(level)}>{msg}</color>",
-                    ColorMode.Ansi => $"\u001b[{LevelAnsi(level)}m{msg}\u001b[0m",
-                    _ => msg
-                };
+                    Logger.SetLogLevelForType(logType, hadOverride ? previousLevel : null);
+                }
             }
         }
+    }
 
-        /// <summary>
-        /// 注册 Assembly 的元信息（供 ModRegistry 调用）
-        /// </summary>
-        internal static void RegisterAssembly(Assembly assembly, LogLevel minLevel,
-                                              LogFormatFlags logFormat,
-                                              LogConfigUIFlags buildFlags)
+    private static bool ShouldLog(LogLevel level, AssemblyLogConfiguration configuration)
+    {
+        return level >= configuration.MinimumLevel;
+    }
+
+    private static Logger GetLogger(Assembly assembly)
+    {
+        AssemblyLogConfiguration configuration = GetOrCreateConfiguration(assembly);
+        string context = ResolveContext(assembly);
+
+        LoggerHandle handle = Loggers.AddOrUpdate(
+            assembly,
+            _ => CreateLoggerHandle(context, configuration.LogType),
+            (_, existing) => existing.Type == configuration.LogType
+                ? UpdateLoggerHandle(existing, context)
+                : CreateLoggerHandle(context, configuration.LogType));
+
+        return handle.Logger;
+    }
+
+    private static LoggerHandle CreateLoggerHandle(string context, LogType logType)
+    {
+        return new LoggerHandle(logType, new Logger(context, logType));
+    }
+
+    private static LoggerHandle UpdateLoggerHandle(LoggerHandle existing, string context)
+    {
+        existing.Logger.Context = context;
+        return existing;
+    }
+
+    private static AssemblyLogConfiguration GetOrCreateConfiguration(Assembly assembly)
+    {
+        return Configurations.GetOrAdd(assembly, _ => CreateDefaultConfiguration());
+    }
+
+    private static AssemblyLogConfiguration CreateDefaultConfiguration()
+    {
+        return new AssemblyLogConfiguration
         {
-            if (assembly == null)
+            MinimumLevel = DefaultLogLevel,
+            LogType = DefaultLogType,
+            PrefixFlags = DefaultPrefixFlags,
+            ThrowOnFatal = DefaultThrowOnFatal,
+            IncludeExceptionDetails = DefaultIncludeExceptionDetails,
+        };
+    }
+
+    private static string ResolveContext(Assembly assembly)
+    {
+        if (ModRegistry.TryGetContext(out ModContext? context, assembly) && context != null)
+        {
+            return context.LoggerContext;
+        }
+
+        string name = VersionInfo.GetName(assembly);
+        string version = VersionInfo.GetVersion(assembly);
+        return string.IsNullOrWhiteSpace(version) ? name : $"{name} v{version}";
+    }
+
+    private static string Format(string? message, Assembly assembly, Exception? exception, AssemblyLogConfiguration configuration)
+    {
+        var builder = new System.Text.StringBuilder();
+
+        if ((configuration.PrefixFlags & LogPrefixFlags.Timestamp) != 0)
+        {
+            builder.Append('[');
+            builder.Append(DateTime.Now.ToString("HH:mm:ss"));
+            builder.Append("] ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            builder.Append(message);
+        }
+
+        if (exception != null)
+        {
+            if (builder.Length > 0)
             {
-                Fatal(new ArgumentNullException(nameof(assembly)), "尝试为 null Assembly 注册日志配置");
-                return;
+                builder.AppendLine();
             }
 
-            if (_assemblyConfigs.ContainsKey(assembly))
-            {
-                Debug($"Assembly {ModRegistry.GetTag(assembly)} 已注册日志配置，跳过重复注册（若手动阻塞了ModRegistry，这是正常的）");
-                return;
-            }
-
-            SetLogLevel(minLevel, assembly);
-            SetFormatFlags(logFormat, assembly);
-            BuildLoggerUI.BuildUI(assembly, buildFlags);
+            builder.Append(configuration.IncludeExceptionDetails ? exception.ToString() : exception.Message);
         }
 
-        /// <summary>
-        /// 反注册 Assembly（供 ModRegistry 调用）
-        /// </summary>
-        internal static void UnregisterAssembly(Assembly assembly)
+        if (builder.Length == 0)
         {
-            if (assembly == null) return;
-            _assemblyConfigs.Remove(assembly);
+            builder.Append(ModRegistry.GetTag(assembly));
         }
 
-        /// <summary>
-        /// 设置当前调用 Assembly 的最低日志等级
-        /// </summary>
-        public static void SetLogLevel(LogLevel level, Assembly? asm = null)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            var config = GetOrCreateConfig(asm);
-            config.MinLevel = level;
-            Debug($"已将 {ModRegistry.GetTag(asm)} 的日志等级设置为 {level}");
-        }
+        return builder.ToString();
+    }
 
-        /// <summary>
-        /// 设置当前调用 Assembly 的日志格式
-        /// </summary>
-        public static void SetFormatFlags(LogFormatFlags flags, Assembly? asm = null)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            var config = GetOrCreateConfig(asm);
-            config.FormatFlags = flags;
-        }
-
-        /// <summary>
-        /// 判断两个日志格式是否相交
-        /// </summary>
-        public static bool HasFormatFlag(LogFormatFlags flag1, LogFormatFlags flag2)
-        {
-            return (flag1 & flag2) != 0;
-        }
-
-        /// <summary>
-        /// 判断当前调用 Assembly 是否包含指定日志格式标志
-        /// </summary>
-        public static bool HasFormatFlag(LogFormatFlags flag, Assembly? asm = null)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            var config = GetOrCreateConfig(asm);
-            return HasFormatFlag(config.FormatFlags, flag);
-        }
-
-        /// <summary>
-        /// 将当前调用 Assembly 的指定日志格式标志取反
-        /// </summary>
-        public static void ToggleFormatFlag(LogFormatFlags flag, Assembly? asm = null)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            var config = GetOrCreateConfig(asm);
-            config.FormatFlags ^= flag;
-            Debug($"已将 {ModRegistry.GetTag(asm)} 的日志格式标志 {flag} 取反，当前状态：{(config.FormatFlags & flag) != 0}");
-        }
-
-        /// <summary>
-        /// 获取当前调用 Assembly 的最低日志等级，若不存在，则设为默认并返回
-        /// </summary>
-        /// <param name="asm"> 留空则获取调用者 Assembly 的配置 </param>
-        /// <returns>
-        /// 返回日志等级，若未注册则设置为默认等级并返回
-        /// </returns>
-        public static LogLevel GetLogLevel(Assembly? asm = null)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            if (!_assemblyConfigs.TryGetValue(asm, out var config))
-            {
-                Trace($"查询{ModRegistry.GetTag(asm)}的日志等级，但是未找到，设置为默认值{DefaultLogLevel}");
-                SetLogLevel(DefaultLogLevel, asm);
-            }
-            return config.MinLevel;
-        }
-
-        /// <summary>
-        /// 获取当前调用 Assembly 的日志格式配置
-        /// </summary>
-        /// <param name="asm"> 留空则获取调用者 Assembly 的配置 </param>
-        /// <returns>
-        /// 返回日志格式配置，若未注册则返回全局配置
-        /// </returns>
-        public static LogFormatFlags GetFormatFlags(Assembly? asm = null)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            if (_assemblyConfigs.TryGetValue(asm, out var config))
-            {
-                return config.FormatFlags;
-            }
-            return _globalFormatFlags;
-        }
-
-        /// <summary>
-        /// 判断是否应该输出日志
-        /// </summary>
-        private static bool ShouldLog(Assembly asm, LogLevel level, out LogFormatFlags formatFlags)
-        {
-            // 获取该 Assembly 的配置（如果没有则使用全局配置）
-            bool hasConfig = _assemblyConfigs.TryGetValue(asm, out var config);
-
-            // 获取格式配置
-            formatFlags = hasConfig ? config.FormatFlags : _globalFormatFlags;
-
-            // 获取有效的日志等级
-            LogLevel effectiveLevel = hasConfig ? config.MinLevel : _globalMinLevel;
-
-            return level >= effectiveLevel;
-        }
-
-        /// <summary>
-        /// 根据格式配置格式化输出内容
-        /// </summary>
-        private static string Format(Assembly asm, LogFormatFlags formatFlags, LogLevel level, string? message, string caller, string file, int line)
-        {
-            var parts = new System.Text.StringBuilder();
-
-            // TAG
-            if ((formatFlags & LogFormatFlags.Tag) != 0)
-            {
-                parts.Append(ModRegistry.GetTag(asm));
-                parts.Append(' ');
-            }
-
-            // 时间戳
-            if ((formatFlags & LogFormatFlags.Timestamp) != 0)
-            {
-                parts.Append('[');
-                parts.Append(DateTime.Now.ToString("HH:mm:ss"));
-                parts.Append("] ");
-            }
-
-            // 日志等级
-            if ((formatFlags & LogFormatFlags.Level) != 0)
-            {
-                parts.Append('[');
-                parts.Append(level.ToString().ToUpper());
-                parts.Append("] ");
-            }
-
-            // 文件路径
-            if ((formatFlags & LogFormatFlags.FilePath) != 0 && !string.IsNullOrEmpty(file))
-            {
-                parts.Append(System.IO.Path.GetFileName(file));
-                parts.Append(" -> ");
-            }
-
-            // 调用方法名
-            if ((formatFlags & LogFormatFlags.Caller) != 0 && !string.IsNullOrEmpty(caller))
-            {
-                parts.Append(caller);
-            }
-
-            // 行号
-            if ((formatFlags & LogFormatFlags.LineNumber) != 0 && line > 0)
-            {
-                parts.Append(" (L");
-                parts.Append(line);
-                parts.Append(')');
-            }
-
-            // 分隔符和消息
-            if (parts.Length > 0)
-            {
-                parts.Append(": ");
-            }
-
-            if (!string.IsNullOrEmpty(message))
-            {
-                if (HasFormatFlag(formatFlags, LogFormatFlags.Colored))
-                    parts.Append(ModLoggerColor.ColorizeLevel(level, message));
-                else
-                    parts.Append(message);
-            }
-
-            if (HasFormatFlag(formatFlags, LogFormatFlags.StackTrace))
-            {
-                parts.AppendLine();
-                parts.Append("Call Stack: ");
-                parts.Append(GetCallStackPath());
-            }
-
-            return parts.ToString();
-        }
-
-        /// <summary>
-        /// 手动指定等级输出日志，为空不打印
-        /// </summary>
-        public static void Log(LogLevel? level = null, string? message = null,
-            Assembly? asm = null,
-            [CallerMemberName] string caller = "",
-            [CallerFilePath] string file = "",
-            [CallerLineNumber] int line = 0)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            if (level == null || !ShouldLog(asm, (LogLevel)level!, out var formatFlags)) return;
-
-            string text = Format(asm, formatFlags, (LogLevel)level!, message, caller, file, line);
-            switch (level)
-            {
-                case LogLevel.Trace:
-                case LogLevel.Debug:
-                case LogLevel.Info:
-                    UnityEngine.Debug.Log(text);
-                    break;
-
-                case LogLevel.Warn:
-                    UnityEngine.Debug.LogWarning(text);
-                    break;
-
-                case LogLevel.Error:
-                case LogLevel.Fatal:
-                    UnityEngine.Debug.LogError(text);
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// 使用Trace输出（使用调用 Assembly 的配置）
-        /// </summary>
-        public static void Trace(string? msg = null, Assembly? asm = null, [CallerMemberName] string caller = "", [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            Log(LogLevel.Trace, msg, asm, caller, file, line);
-        }
-
-        /// <summary>
-        /// 使用Debug输出（使用调用 Assembly 的配置）
-        /// </summary>
-        public static void Debug(string? msg = null, Assembly? asm = null, [CallerMemberName] string caller = "", [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            Log(LogLevel.Debug, msg, asm, caller, file, line);
-        }
-
-        /// <summary>
-        /// Info输出（使用调用 Assembly 的配置）
-        /// </summary>
-        public static void Info(string? msg = null, Assembly? asm = null, [CallerMemberName] string caller = "", [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            Log(LogLevel.Info, msg, asm, caller, file, line);
-        }
-
-        /// <summary>
-        /// Warn输出（使用调用 Assembly 的配置）
-        /// </summary>
-        public static void Warn(string? msg = null, Exception? ex = null, Assembly? asm = null, [CallerMemberName] string caller = "", [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            Log(LogLevel.Warn, msg + (ex != null ? $"\n{ex}" : ""), asm, caller, file, line);
-        }
-
-        /// <summary>
-        /// Error输出，其中若传递异常，会换行并输出异常（使用调用 Assembly 的配置）
-        /// </summary>
-        public static void Error(string? msg = null, Exception? ex = null, Assembly? asm = null, [CallerMemberName] string caller = "", [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-            Log(LogLevel.Error, msg + (ex != null ? $"\n{ex}" : ""), asm, caller, file, line);
-        }
-
-        /// <summary>
-        /// Fatal输出，在Debug模式下会直接抛出异常，在Release模式下会打印异常信息
-        /// </summary>
-        /// <param name="ex"> 待处理的异常 </param>
-        /// <param name="msg"> 打印的附加信息 </param>
-        /// <param name="asm"> 程序集，留空则为调用者 </param>
-        /// <param name="caller"> 调用者函数名，留空自动填充 </param>
-        /// <param name="file"> 调用者函数名，留空自动填充 </param>
-        /// <param name="line"> 调用者函数名，留空自动填充 </param>
-        public static void Fatal(Exception ex, string? msg = null, Assembly? asm = null,
-            [CallerMemberName] string caller = "",
-            [CallerFilePath] string file = "",
-            [CallerLineNumber] int line = 0)
-        {
-            asm ??= Assembly.GetCallingAssembly();
-
-            if (IsAssemblyDebugBuild(asm))
-            {
-                Log(LogLevel.Fatal, msg, asm, caller, file, line);
-                throw ex;
-            }
-            else
-            {
-                Log(LogLevel.Fatal, msg + (ex != null ? $"\n{ex.Message}" : ""), asm, caller, file, line);
-            }
-        }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static Assembly ResolveAssembly(Assembly? assembly)
+    {
+        return assembly ?? Assembly.GetCallingAssembly();
     }
 }

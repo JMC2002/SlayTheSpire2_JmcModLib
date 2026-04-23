@@ -1,9 +1,9 @@
-﻿{
-  "id": "AllCardIs",
-  "name": "将所有卡牌变为/AllCardIs",
+{
+  "id": "JmcModLib",
+  "name": "JmcModLib",
   "author": "JMC",
-  "version": "1.2.2",
-  "description": "将攻击牌和诅咒变为爪击，后续可能考虑做成通用形式；有问题反馈B站JMC丶或者Github，二次分发请注明来源",
+  "version": "1.0.4",
+  "description": "JmcModLib for Slay the Spire 2.",
   "has_pck": true,
   "has_dll": true,
   "dependencies": [],

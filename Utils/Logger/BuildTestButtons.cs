@@ -1,42 +1,31 @@
-﻿using JmcModLib.Config;
-using System;
 using System.Reflection;
 
-namespace JmcModLib.Utils
-{
-    internal partial class BuildLoggerUI
-    {
-        private static class BuildTestButtons
-        {
-            private const string ButtonText = "点击输出";
-            private const string GroupName = "日志库测试";
+namespace JmcModLib.Core;
 
-            private static void TestDebug(Assembly asm) => ModLogger.Debug("测试Debug", asm);
-            private static void TestTrace(Assembly asm) => ModLogger.Trace("测试Trace", asm);
-            private static void TestInfo(Assembly asm) => ModLogger.Info("测试Info", asm);
-            private static void TestWarn(Assembly asm) => ModLogger.Warn("测试Warn", new InvalidOperationException("这是一个测试异常"), asm);
-            private static void TestError(Assembly asm) => ModLogger.Error("测试Error", new InvalidOperationException("这是一个测试异常"), asm);
-            private static void TestFatal(Assembly asm)
+internal readonly record struct LoggerTestAction(string Name, Action<Assembly> Invoke);
+
+internal static class BuildTestButtons
+{
+    internal static IReadOnlyList<LoggerTestAction> CreateDefaultActions()
+    {
+        return
+        [
+            new LoggerTestAction("Trace", static asm => ModLogger.Trace("Logger test trace.", asm)),
+            new LoggerTestAction("Debug", static asm => ModLogger.Debug("Logger test debug.", asm)),
+            new LoggerTestAction("Info", static asm => ModLogger.Info("Logger test info.", asm)),
+            new LoggerTestAction("Warn", static asm => ModLogger.Warn("Logger test warning.", new InvalidOperationException("Logger test warning exception."), asm)),
+            new LoggerTestAction("Error", static asm => ModLogger.Error("Logger test error.", new InvalidOperationException("Logger test error exception."), asm)),
+            new LoggerTestAction("Fatal", static asm =>
             {
                 try
                 {
-                    ModLogger.Fatal(new InvalidOperationException("这是一个测试致命异常"), "测试Fatal", asm);
+                    ModLogger.Fatal(new InvalidOperationException("Logger test fatal exception."), "Logger test fatal.", asm);
                 }
                 catch (Exception ex)
                 {
-                    ModLogger.Error("捕获到 Fatal 抛出的异常", ex);
+                    ModLogger.Error("Caught fatal exception during logger test.", ex, asm);
                 }
-            }
-
-            internal static void BuildUI(Assembly asm)
-            {
-                ConfigManager.RegisterButton("测试Trace输出", () => TestTrace(asm), ButtonText, GroupName, asm);
-                ConfigManager.RegisterButton("测试Debug输出", () => TestDebug(asm), ButtonText, GroupName, asm);
-                ConfigManager.RegisterButton("测试Info输出", () => TestInfo(asm), ButtonText, GroupName, asm);
-                ConfigManager.RegisterButton("测试Warn输出", () => TestWarn(asm), ButtonText, GroupName, asm);
-                ConfigManager.RegisterButton("测试Error输出", () => TestError(asm), ButtonText, GroupName, asm);
-                ConfigManager.RegisterButton("测试Fatal输出", () => TestFatal(asm), ButtonText, GroupName, asm);
-            }
-        };
+            }),
+        ];
     }
 }
