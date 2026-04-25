@@ -1,9 +1,10 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using JmcModLib.Core;
 using MegaCrit.Sts2.Core.Logging;
 
-namespace JmcModLib.Core;
+namespace JmcModLib.Utils;
 
 [Flags]
 public enum LogPrefixFlags

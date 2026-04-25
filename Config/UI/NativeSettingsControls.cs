@@ -6,7 +6,7 @@ using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Screens.ModdingScreen;
 using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
 using Godot;
-using JmcModLib.Core;
+using JmcModLib.Utils;
 
 namespace JmcModLib.Config.UI;
 

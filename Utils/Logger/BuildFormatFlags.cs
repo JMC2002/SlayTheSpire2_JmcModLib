@@ -1,4 +1,4 @@
-namespace JmcModLib.Core;
+namespace JmcModLib.Utils;
 
 internal static class BuildFormatFlags
 {

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace JmcModLib.Core;
+namespace JmcModLib.Utils;
 
 internal readonly record struct LoggerTestAction(string Name, Action<Assembly> Invoke);
 

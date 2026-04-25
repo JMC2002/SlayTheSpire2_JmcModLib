@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace JmcModLib.Core;
+namespace JmcModLib.Utils;
 
 /// <summary>
 /// Reserved hook point for future logger UI integration.

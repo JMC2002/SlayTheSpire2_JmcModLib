@@ -1,6 +1,6 @@
 using MegaCrit.Sts2.Core.Logging;
 
-namespace JmcModLib.Core;
+namespace JmcModLib.Utils;
 
 internal static class BuildLogLevelSettings
 {
