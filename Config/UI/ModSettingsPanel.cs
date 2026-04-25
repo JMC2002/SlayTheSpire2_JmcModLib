@@ -23,6 +23,8 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     private VBoxContainer? root;
     private VBoxContainer? listRoot;
     private HBoxContainer? titleActions;
+    private MegaRichTextLabel? titleLabel;
+    private MegaRichTextLabel? descriptionLabel;
     private SettingsUiTemplates? nativeTemplates;
     private bool suppressControlEvents;
 
@@ -45,6 +47,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         ConfigManager.EntryRegistered += OnEntryRegistered;
         ConfigManager.AssemblyRegistered += OnAssemblyChanged;
         ConfigManager.AssemblyUnregistered += OnAssemblyChanged;
+        L10n.SubscribeToLocaleChange(OnLocaleChanged);
         RefreshPanelSize();
         RebuildContent();
     }
@@ -55,6 +58,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         ConfigManager.EntryRegistered -= OnEntryRegistered;
         ConfigManager.AssemblyRegistered -= OnAssemblyChanged;
         ConfigManager.AssemblyUnregistered -= OnAssemblyChanged;
+        L10n.UnsubscribeToLocaleChange(OnLocaleChanged);
         base._ExitTree();
     }
 
@@ -106,7 +110,8 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         };
         titleRow.AddThemeConstantOverride("separation", 20);
 
-        Control title = CreateStyledText("[gold]模组设置[/gold]");
+        titleLabel = CreateStyledText($"[gold]{ModSettingsText.Title()}[/gold]");
+        Control title = titleLabel;
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         title.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         titleRow.AddChild(title);
@@ -121,7 +126,8 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         titleRow.AddChild(titleActions);
         root.AddChild(titleRow);
 
-        root.AddChild(CreateDescriptionText("[color=#aab7bc]在这里直接调整已注册模组的配置项，修改会立即保存。[/color]"));
+        descriptionLabel = CreateDescriptionText($"[color=#aab7bc]{ModSettingsText.Description()}[/color]");
+        root.AddChild(descriptionLabel);
 
         root.AddChild(new HSeparator());
 
@@ -158,7 +164,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         if (modsWithConfig.Count == 0)
         {
-            listRoot.AddChild(BuildNotice("当前没有已注册配置项的模组。"));
+            listRoot.AddChild(BuildNotice(ModSettingsText.NoConfigMods()));
             RefreshPanelSize();
             return;
         }
@@ -210,7 +216,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         if (!isCollapsed)
         {
-            wrapper.AddChild(CreateStyledText($"[color=#aab7bc]作者:[/color] {author}"));
+            wrapper.AddChild(CreateStyledText($"[color=#aab7bc]{ModSettingsText.AuthorLabel()}:[/color] {author}"));
 
             if (!string.IsNullOrWhiteSpace(description))
             {
@@ -219,7 +225,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
             if (mod.assembly == null)
             {
-                wrapper.AddChild(BuildNotice("该模组未加载托管程序集，无法显示配置。"));
+                wrapper.AddChild(BuildNotice(ModSettingsText.NoManagedAssembly()));
                 wrapper.AddChild(new HSeparator());
                 return wrapper;
             }
@@ -227,7 +233,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             IReadOnlyCollection<ConfigEntry> entries = ConfigManager.GetEntries(mod.assembly);
             if (entries.Count == 0)
             {
-                wrapper.AddChild(BuildNotice("该模组当前没有可显示的配置项。"));
+                wrapper.AddChild(BuildNotice(ModSettingsText.NoConfigEntries()));
                 wrapper.AddChild(new HSeparator());
                 return wrapper;
             }
@@ -237,12 +243,13 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
             foreach (string group in groups)
             {
+                IReadOnlyCollection<ConfigEntry> groupEntries = [.. ConfigManager.GetEntries(group, mod.assembly)];
                 if (!hideDefaultGroupHeader)
                 {
-                    wrapper.AddChild(BuildGroupHeader(group));
+                    wrapper.AddChild(BuildGroupHeader(mod.assembly, group, groupEntries));
                 }
 
-                foreach (ConfigEntry entry in ConfigManager.GetEntries(group, mod.assembly))
+                foreach (ConfigEntry entry in groupEntries)
                 {
                     wrapper.AddChild(BuildEntryRow(entry, focusableControls));
                 }
@@ -257,14 +264,14 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return CreateStyledText($"[color=#d0d8dc]{text}[/color]");
     }
 
-    private VBoxContainer BuildGroupHeader(string group)
+    private VBoxContainer BuildGroupHeader(System.Reflection.Assembly assembly, string group, IReadOnlyCollection<ConfigEntry> entries)
     {
         var wrapper = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
 
-        wrapper.AddChild(CreateStyledText($"[color=#e0b24f]{group}[/color]"));
+        wrapper.AddChild(CreateStyledText($"[color=#e0b24f]{ConfigLocalization.GetGroupName(assembly, group, entries)}[/color]"));
         wrapper.AddChild(new HSeparator());
         return wrapper;
     }
@@ -290,16 +297,17 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         };
         topRow.AddChild(labelColumn);
 
-        labelColumn.AddChild(CreateStyledText($"[b]{entry.DisplayName}[/b]"));
+        labelColumn.AddChild(CreateStyledText($"[b]{ConfigLocalization.GetDisplayName(entry)}[/b]"));
 
-        if (!string.IsNullOrWhiteSpace(entry.Attribute.Description))
+        string description = ConfigLocalization.GetDescription(entry);
+        if (!string.IsNullOrWhiteSpace(description))
         {
-            labelColumn.AddChild(CreateStyledText($"[color=#aab7bc]{entry.Attribute.Description}[/color]"));
+            labelColumn.AddChild(CreateStyledText($"[color=#aab7bc]{description}[/color]"));
         }
 
         if (entry.Attribute.RestartRequired)
         {
-            labelColumn.AddChild(CreateStyledText("[color=#e0b24f]需要重启游戏后完全生效。[/color]"));
+            labelColumn.AddChild(CreateStyledText($"[color=#e0b24f]{ModSettingsText.RestartRequired()}[/color]"));
         }
 
         Control editor = BuildEditor(entry, focusableControls);
@@ -350,7 +358,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             return BuildSpinBoxEditor(entry, valueType, focusableControls);
         }
 
-        Control unsupported = CreateStyledText($"[color=#d07f7f]Unsupported type: {valueType.Name}[/color]");
+        Control unsupported = CreateStyledText($"[color=#d07f7f]{ModSettingsText.UnsupportedType(valueType.Name)}[/color]");
         unsupported.CustomMinimumSize = new Vector2(240f, 0f);
         return unsupported;
     }
@@ -457,10 +465,13 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         if (nativeTemplates?.DropdownTemplate != null && nativeTemplates.DropdownItemTemplate != null)
         {
+            IReadOnlyList<JmcDropdownOption> localizedOptions = [.. options.Select(option =>
+                new JmcDropdownOption(ConfigLocalization.GetOptionText(entry, option), option))];
+
             var nativeDropdown = JmcSettingsDropdown.Create(
                 nativeTemplates.DropdownTemplate,
                 nativeTemplates.DropdownItemTemplate,
-                options,
+                localizedOptions,
                 entry.GetValue()?.ToString() ?? string.Empty,
                 selectedText =>
                 {
@@ -494,7 +505,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         for (int i = 0; i < options.Count; i++)
         {
-            dropdown.AddItem(options[i], i);
+            dropdown.AddItem(ConfigLocalization.GetOptionText(entry, options[i]), i);
         }
 
         dropdown.ItemSelected += index =>
@@ -504,7 +515,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
                 return;
             }
 
-            string selectedText = dropdown.GetItemText((int)index);
+            string selectedText = options[(int)index];
             object? converted = valueType.IsEnum
                 ? Enum.Parse(valueType, selectedText, ignoreCase: true)
                 : selectedText;
@@ -651,7 +662,11 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private Control BuildButtonEditor(ButtonEntry entry, List<Control> focusableControls)
     {
-        Control button = BuildCompactActionButton(entry.ButtonText, GlobalButtonWidth, () => InvokeButtonEntry(entry));
+        Control button = BuildCompactActionButton(
+            ConfigLocalization.GetButtonText(entry),
+            GlobalButtonWidth,
+            () => InvokeButtonEntry(entry),
+            entry.Color);
         focusableControls.Add(button);
         return button;
     }
@@ -702,7 +717,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private Control BuildCollapseButton(Mod mod, bool isCollapsed)
     {
-        string label = isCollapsed ? "展开" : "折叠";
+        string label = isCollapsed ? ModSettingsText.Expand() : ModSettingsText.Collapse();
 
         void ToggleSection()
         {
@@ -715,7 +730,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private Control BuildGlobalCollapseButton(IReadOnlyCollection<Mod> mods, bool hasExpanded)
     {
-        string label = hasExpanded ? "全部折叠" : "全部展开";
+        string label = hasExpanded ? ModSettingsText.CollapseAll() : ModSettingsText.ExpandAll();
 
         void ToggleAll()
         {
@@ -726,11 +741,16 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return BuildCompactActionButton(label, GlobalButtonWidth, ToggleAll);
     }
 
-    private Control BuildCompactActionButton(string label, float width, Action onPressed)
+    private Control BuildCompactActionButton(
+        string label,
+        float width,
+        Action onPressed,
+        UIButtonColor color = UIButtonColor.Default)
     {
-        if (nativeTemplates?.ButtonTemplate != null)
+        Control? template = nativeTemplates?.GetButtonTemplate(color);
+        if (template != null)
         {
-            Control nativeButton = JmcSettingsButton.Create(nativeTemplates.ButtonTemplate, label, onPressed, hideImage: false);
+            Control nativeButton = JmcSettingsButton.Create(template, label, onPressed, color, hideImage: false);
             nativeButton.CustomMinimumSize = new Vector2(width, ActionButtonHeight);
             nativeButton.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
             nativeButton.SizeFlagsVertical = SizeFlags.ShrinkCenter;
@@ -745,14 +765,32 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             SizeFlagsHorizontal = SizeFlags.ShrinkEnd,
             SizeFlagsVertical = SizeFlags.ShrinkCenter
         };
+        ApplyFallbackButtonColor(button, color);
         button.Pressed += onPressed;
         return button;
     }
+
+    private static void ApplyFallbackButtonColor(Button button, UIButtonColor color)
+    {
+        if (!JmcButtonColor.TryGetTint(color, out Color tint))
+        {
+            return;
+        }
+
+        button.Modulate = tint;
+        button.SelfModulate = tint;
+    }
     private Control BuildResetButton(System.Reflection.Assembly assembly)
     {
-        if (nativeTemplates?.ButtonTemplate != null)
+        Control? template = nativeTemplates?.GetButtonTemplate(UIButtonColor.Reset);
+        if (template != null)
         {
-            Control button = JmcSettingsButton.Create(nativeTemplates.ButtonTemplate, "重置本模组", () => ResetModConfig(assembly), hideImage: false);
+            Control button = JmcSettingsButton.Create(
+                template,
+                ModSettingsText.ResetMod(),
+                () => ResetModConfig(assembly),
+                UIButtonColor.Reset,
+                hideImage: false);
             button.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
             button.SizeFlagsVertical = SizeFlags.ShrinkCenter;
             return button;
@@ -760,7 +798,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         var resetButton = new Button
         {
-            Text = "重置本模组",
+            Text = ModSettingsText.ResetMod(),
             FocusMode = FocusModeEnum.All,
             CustomMinimumSize = new Vector2(150f, 42f)
         };
@@ -854,6 +892,29 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         if (Visible)
         {
             RebuildContent();
+        }
+    }
+
+    private void OnLocaleChanged()
+    {
+        RefreshStaticText();
+
+        if (Visible)
+        {
+            RebuildContent();
+        }
+    }
+
+    private void RefreshStaticText()
+    {
+        if (titleLabel != null)
+        {
+            titleLabel.Text = $"[gold]{ModSettingsText.Title()}[/gold]";
+        }
+
+        if (descriptionLabel != null)
+        {
+            descriptionLabel.Text = $"[color=#aab7bc]{ModSettingsText.Description()}[/color]";
         }
     }
 

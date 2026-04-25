@@ -16,15 +16,23 @@ internal sealed class ButtonEntry : ConfigEntry
         string group,
         string displayName,
         string buttonText,
+        string? buttonTextKey,
+        UIButtonColor color,
         Action action,
         ConfigAttribute attribute)
         : base(assembly, storageKey, group, displayName, attribute, null)
     {
         this.action = action ?? throw new ArgumentNullException(nameof(action));
         ButtonText = buttonText;
+        ButtonTextKey = buttonTextKey;
+        Color = color;
     }
 
     public string ButtonText { get; }
+
+    public string? ButtonTextKey { get; }
+
+    public UIButtonColor Color { get; }
 
     public override Type ValueType => typeof(void);
 
@@ -59,8 +67,14 @@ internal sealed class ButtonEntry : ConfigEntry
             group,
             displayName,
             attribute.ButtonText,
+            attribute.ButtonTextKey,
+            attribute.Color,
             action,
             attribute.HelpText,
+            attribute.LocTable,
+            attribute.DisplayNameKey,
+            attribute.DescriptionKey,
+            attribute.GroupKey,
             attribute.Order);
     }
 
@@ -72,7 +86,13 @@ internal sealed class ButtonEntry : ConfigEntry
         string group = ConfigAttribute.DefaultGroup,
         string? storageKey = null,
         string? helpText = null,
-        int order = 0)
+        string? locTable = null,
+        string? displayNameKey = null,
+        string? helpTextKey = null,
+        string? buttonTextKey = null,
+        string? groupKey = null,
+        int order = 0,
+        UIButtonColor color = UIButtonColor.Default)
     {
         ArgumentNullException.ThrowIfNull(assembly);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -83,8 +103,14 @@ internal sealed class ButtonEntry : ConfigEntry
             ResolveGroup(group),
             displayName.Trim(),
             buttonText,
+            buttonTextKey,
+            color,
             action,
             helpText,
+            locTable,
+            displayNameKey,
+            helpTextKey,
+            groupKey,
             order);
     }
 
@@ -122,14 +148,24 @@ internal sealed class ButtonEntry : ConfigEntry
         string group,
         string displayName,
         string buttonText,
+        string? buttonTextKey,
+        UIButtonColor color,
         Action action,
         string? helpText,
+        string? locTable,
+        string? displayNameKey,
+        string? helpTextKey,
+        string? groupKey,
         int order)
     {
         var descriptor = new ConfigAttribute(displayName, group: group)
         {
             Key = storageKey,
             Description = helpText,
+            LocTable = locTable,
+            DisplayNameKey = displayNameKey,
+            DescriptionKey = helpTextKey,
+            GroupKey = groupKey,
             Order = order
         };
 
@@ -139,6 +175,8 @@ internal sealed class ButtonEntry : ConfigEntry
             group,
             displayName,
             string.IsNullOrWhiteSpace(buttonText) ? "按钮" : buttonText.Trim(),
+            buttonTextKey,
+            color,
             action,
             descriptor);
     }

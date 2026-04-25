@@ -172,6 +172,9 @@ public static class ConfigManager
         Action<TValue>? onChanged = null,
         UIConfigAttribute? uiAttribute = null,
         string? storageKey = null,
+        string? locTable = null,
+        string? displayNameKey = null,
+        string? groupKey = null,
         Assembly? assembly = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -189,7 +192,10 @@ public static class ConfigManager
 
         var descriptor = new ConfigAttribute(displayName, group: resolvedGroup)
         {
-            Key = resolvedStorageKey
+            Key = resolvedStorageKey,
+            LocTable = locTable,
+            DisplayNameKey = displayNameKey,
+            GroupKey = groupKey
         };
 
         var entry = new ConfigEntry<TValue>(
@@ -216,7 +222,13 @@ public static class ConfigManager
         Assembly? assembly = null,
         string? storageKey = null,
         string? helpText = null,
-        int order = 0)
+        string? locTable = null,
+        string? displayNameKey = null,
+        string? helpTextKey = null,
+        string? buttonTextKey = null,
+        string? groupKey = null,
+        int order = 0,
+        UIButtonColor color = UIButtonColor.Default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
         ArgumentNullException.ThrowIfNull(action);
@@ -232,7 +244,13 @@ public static class ConfigManager
             group,
             storageKey,
             helpText,
-            order);
+            locTable,
+            displayNameKey,
+            helpTextKey,
+            buttonTextKey,
+            groupKey,
+            order,
+            color);
 
         RegisterEntry(entry);
         return entry.Key;

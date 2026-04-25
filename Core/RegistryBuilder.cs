@@ -1,6 +1,7 @@
 using System.Reflection;
 using JmcModLib.Config;
 using JmcModLib.Config.Storage;
+using JmcModLib.Config.UI;
 using MegaCrit.Sts2.Core.Logging;
 
 namespace JmcModLib.Core;
@@ -74,7 +75,13 @@ public sealed class RegistryBuilder
         string group = ConfigAttribute.DefaultGroup,
         string? storageKey = null,
         string? helpText = null,
-        int order = 0)
+        string? locTable = null,
+        string? displayNameKey = null,
+        string? helpTextKey = null,
+        string? buttonTextKey = null,
+        string? groupKey = null,
+        int order = 0,
+        UIButtonColor color = UIButtonColor.Default)
     {
         key = ConfigManager.RegisterButton(
             description,
@@ -84,7 +91,13 @@ public sealed class RegistryBuilder
             assembly,
             storageKey,
             helpText,
-            order);
+            locTable,
+            displayNameKey,
+            helpTextKey,
+            buttonTextKey,
+            groupKey,
+            order,
+            color);
         return this;
     }
 
@@ -95,9 +108,29 @@ public sealed class RegistryBuilder
         string group = ConfigAttribute.DefaultGroup,
         string? storageKey = null,
         string? helpText = null,
-        int order = 0)
+        string? locTable = null,
+        string? displayNameKey = null,
+        string? helpTextKey = null,
+        string? buttonTextKey = null,
+        string? groupKey = null,
+        int order = 0,
+        UIButtonColor color = UIButtonColor.Default)
     {
-        return RegisterButton(out _, description, action, buttonText, group, storageKey, helpText, order);
+        return RegisterButton(
+            out _,
+            description,
+            action,
+            buttonText,
+            group,
+            storageKey,
+            helpText,
+            locTable,
+            displayNameKey,
+            helpTextKey,
+            buttonTextKey,
+            groupKey,
+            order,
+            color);
     }
 
     public ModContext Done()

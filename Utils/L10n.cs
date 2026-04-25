@@ -13,6 +13,9 @@ namespace JmcModLib.Utils;
 public static class L10n
 {
     public const string FallbackLanguage = "eng";
+    public const string DefaultTable = "settings_ui";
+
+    public static IReadOnlyList<string> SupportedLanguages => LocManager.Languages;
 
     public static string CurrentLanguage => LocManager.Instance?.Language ?? FallbackLanguage;
 
@@ -74,7 +77,7 @@ public static class L10n
 
     public static LocString? CreateIfExists(string table, string key, Action<LocString>? configure = null)
     {
-        if (LocManager.Instance == null || !LocString.Exists(table, key))
+        if (!Exists(table, key))
         {
             return null;
         }
@@ -82,6 +85,126 @@ public static class L10n
         LocString locString = new(table, key);
         configure?.Invoke(locString);
         return locString;
+    }
+
+    public static bool Exists(string table, string key)
+    {
+        if (LocManager.Instance == null
+            || string.IsNullOrWhiteSpace(table)
+            || string.IsNullOrWhiteSpace(key))
+        {
+            return false;
+        }
+
+        try
+        {
+            return LocString.Exists(table.Trim(), key.Trim());
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static bool TryGetFormattedText(
+        string table,
+        string key,
+        out string? text,
+        Action<LocString>? configure = null,
+        Assembly? assembly = null)
+    {
+        text = null;
+
+        if (!TryNormalizeLocReference(table, key, out string normalizedTable, out string normalizedKey)
+            || !Exists(normalizedTable, normalizedKey))
+        {
+            return false;
+        }
+
+        try
+        {
+            text = GetFormattedText(normalizedTable, normalizedKey, configure);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ModLogger.Warn(
+                $"Failed to format localization entry {normalizedTable}/{normalizedKey}.",
+                ex,
+                assembly);
+            return false;
+        }
+    }
+
+    public static string Resolve(
+        string? key,
+        string? fallback = null,
+        string? table = null,
+        Assembly? assembly = null,
+        Action<LocString>? configure = null)
+    {
+        if (TryResolve(key, out string? text, table, assembly, configure))
+        {
+            return text;
+        }
+
+        return fallback ?? string.Empty;
+    }
+
+    public static string ResolveAny(
+        IEnumerable<string?> keys,
+        string? fallback = null,
+        string? table = null,
+        Assembly? assembly = null,
+        Action<LocString>? configure = null)
+    {
+        foreach (string? key in keys)
+        {
+            if (TryResolve(key, out string? text, table, assembly, configure))
+            {
+                return text;
+            }
+        }
+
+        return fallback ?? string.Empty;
+    }
+
+    public static string ResolvePath(
+        string? path,
+        string? fallback = null,
+        Assembly? assembly = null,
+        Action<LocString>? configure = null)
+    {
+        return Resolve(path, fallback, DefaultTable, assembly, configure);
+    }
+
+    public static bool TryResolve(
+        string? key,
+        out string text,
+        string? table = null,
+        Assembly? assembly = null,
+        Action<LocString>? configure = null)
+    {
+        text = string.Empty;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return false;
+        }
+
+        string resolvedTable = string.IsNullOrWhiteSpace(table) ? DefaultTable : table.Trim();
+        string resolvedKey = key.Trim();
+        if (!TryNormalizeLocReference(resolvedTable, resolvedKey, out resolvedTable, out resolvedKey))
+        {
+            return false;
+        }
+
+        if (!TryGetFormattedText(resolvedTable, resolvedKey, out string? resolvedText, configure, assembly))
+        {
+            return false;
+        }
+
+        text = resolvedText ?? string.Empty;
+        return true;
     }
 
     public static string GetFormattedText(string table, string key, Action<LocString>? configure = null)
@@ -115,6 +238,26 @@ public static class L10n
         return string.IsNullOrWhiteSpace(language)
             ? CurrentLanguage
             : language.Trim().ToLowerInvariant();
+    }
+
+    private static bool TryNormalizeLocReference(
+        string table,
+        string key,
+        out string normalizedTable,
+        out string normalizedKey)
+    {
+        normalizedTable = table.Trim();
+        normalizedKey = key.Trim();
+
+        int separatorIndex = normalizedKey.IndexOf('/');
+        if (separatorIndex > 0 && separatorIndex < normalizedKey.Length - 1)
+        {
+            normalizedTable = normalizedKey[..separatorIndex].Trim();
+            normalizedKey = normalizedKey[(separatorIndex + 1)..].Trim();
+        }
+
+        return !string.IsNullOrWhiteSpace(normalizedTable)
+            && !string.IsNullOrWhiteSpace(normalizedKey);
     }
 
     private static Assembly ResolveAssembly(Assembly? assembly)

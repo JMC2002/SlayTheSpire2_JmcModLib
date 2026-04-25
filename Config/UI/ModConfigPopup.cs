@@ -15,6 +15,10 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
     private Assembly? assembly;
     private Button? closeButton;
+    private Button? resetButton;
+    private MegaRichTextLabel? titleLabel;
+    private RichTextLabel? subtitleLabel;
+    private RichTextLabel? hintLabel;
     private VBoxContainer? contentRoot;
     private bool suppressControlEvents;
 
@@ -36,11 +40,13 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         BuildLayout();
         RebuildContent();
         ConfigManager.ValueChanged += OnConfigValueChanged;
+        L10n.SubscribeToLocaleChange(OnLocaleChanged);
     }
 
     public override void _ExitTree()
     {
         ConfigManager.ValueChanged -= OnConfigValueChanged;
+        L10n.UnsubscribeToLocaleChange(OnLocaleChanged);
         base._ExitTree();
     }
 
@@ -86,17 +92,16 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         };
         margin.AddChild(root);
 
-        var title = new MegaRichTextLabel
+        titleLabel = new MegaRichTextLabel
         {
             BbcodeEnabled = true,
             FitContent = true,
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
-        string modName = Mod.manifest?.name ?? Mod.manifest?.id ?? "Unknown Mod";
-        title.Text = $"[gold]{modName}[/gold] Config";
-        root.AddChild(title);
+        titleLabel.Text = $"[gold]{ModSettingsText.ConfigTitle(GetModName())}[/gold]";
+        root.AddChild(titleLabel);
 
-        var subtitle = new RichTextLabel
+        subtitleLabel = new RichTextLabel
         {
             BbcodeEnabled = true,
             FitContent = true,
@@ -104,7 +109,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Text = BuildSubtitle()
         };
-        root.AddChild(subtitle);
+        root.AddChild(subtitleLabel);
 
         root.AddChild(new HSeparator());
 
@@ -131,19 +136,19 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         };
         root.AddChild(footer);
 
-        var hint = new RichTextLabel
+        hintLabel = new RichTextLabel
         {
             BbcodeEnabled = true,
             FitContent = true,
             ScrollActive = false,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = "[color=#aab7bc]Changes are saved immediately.[/color]"
+            Text = $"[color=#aab7bc]{ModSettingsText.ChangesSavedImmediately()}[/color]"
         };
-        footer.AddChild(hint);
+        footer.AddChild(hintLabel);
 
-        var resetButton = new Button
+        resetButton = new Button
         {
-            Text = "Reset",
+            Text = ModSettingsText.Reset(),
             CustomMinimumSize = new Vector2(120f, 42f)
         };
         resetButton.Pressed += OnResetPressed;
@@ -151,7 +156,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
         closeButton = new Button
         {
-            Text = "Close",
+            Text = ModSettingsText.Close(),
             CustomMinimumSize = new Vector2(120f, 42f)
         };
         closeButton.Pressed += CloseModal;
@@ -162,7 +167,12 @@ internal sealed class ModConfigPopup : Control, IScreenContext
     {
         string author = Mod.manifest?.author ?? "unknown";
         string version = Mod.manifest?.version ?? "unknown";
-        return $"[b]Author[/b]: {author}\n[b]Version[/b]: {version}";
+        return $"[b]{ModSettingsText.AuthorLabel()}[/b]: {author}\n[b]{ModSettingsText.VersionLabel()}[/b]: {version}";
+    }
+
+    private string GetModName()
+    {
+        return Mod.manifest?.name ?? Mod.manifest?.id ?? "Unknown Mod";
     }
 
     private void RebuildContent()
@@ -181,14 +191,14 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
         if (assembly == null)
         {
-            contentRoot.AddChild(BuildNotice("This mod does not have a loaded assembly, so its config cannot be shown."));
+            contentRoot.AddChild(BuildNotice(ModSettingsText.NoManagedAssembly()));
             return;
         }
 
         IReadOnlyCollection<ConfigEntry> entries = ConfigManager.GetEntries(assembly);
         if (entries.Count == 0)
         {
-            contentRoot.AddChild(BuildNotice("This mod has not registered any configurable entries."));
+            contentRoot.AddChild(BuildNotice(ModSettingsText.NoConfigEntries()));
             return;
         }
 
@@ -197,12 +207,13 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
         foreach (string group in groups)
         {
+            IReadOnlyCollection<ConfigEntry> groupEntries = [.. ConfigManager.GetEntries(group, assembly)];
             if (!hideDefaultGroupHeader)
             {
-                contentRoot.AddChild(BuildGroupHeader(group));
+                contentRoot.AddChild(BuildGroupHeader(assembly, group, groupEntries));
             }
 
-            foreach (ConfigEntry entry in ConfigManager.GetEntries(group, assembly))
+            foreach (ConfigEntry entry in groupEntries)
             {
                 contentRoot.AddChild(BuildEntryRow(entry));
             }
@@ -221,7 +232,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         };
     }
 
-    private static VBoxContainer BuildGroupHeader(string group)
+    private static VBoxContainer BuildGroupHeader(Assembly assembly, string group, IReadOnlyCollection<ConfigEntry> entries)
     {
         var wrapper = new VBoxContainer
         {
@@ -234,7 +245,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             FitContent = true,
             ScrollActive = false,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = $"[gold]{group}[/gold]"
+            Text = $"[gold]{ConfigLocalization.GetGroupName(assembly, group, entries)}[/gold]"
         };
         wrapper.AddChild(label);
         wrapper.AddChild(new HSeparator());
@@ -268,11 +279,12 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             FitContent = true,
             ScrollActive = false,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = $"[b]{entry.DisplayName}[/b]"
+            Text = $"[b]{ConfigLocalization.GetDisplayName(entry)}[/b]"
         };
         labelColumn.AddChild(title);
 
-        if (!string.IsNullOrWhiteSpace(entry.Attribute.Description))
+        string description = ConfigLocalization.GetDescription(entry);
+        if (!string.IsNullOrWhiteSpace(description))
         {
             labelColumn.AddChild(new RichTextLabel
             {
@@ -280,7 +292,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
                 FitContent = true,
                 ScrollActive = false,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                Text = $"[color=#aab7bc]{entry.Attribute.Description}[/color]"
+                Text = $"[color=#aab7bc]{description}[/color]"
             });
         }
 
@@ -292,7 +304,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
                 FitContent = true,
                 ScrollActive = false,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                Text = "[color=#e0b24f]Requires restart to fully apply.[/color]"
+                Text = $"[color=#e0b24f]{ModSettingsText.RestartRequired()}[/color]"
             });
         }
 
@@ -350,7 +362,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             FitContent = true,
             ScrollActive = false,
             CustomMinimumSize = new Vector2(240f, 0f),
-            Text = $"[color=#d07f7f]Unsupported type: {valueType.Name}[/color]"
+            Text = $"[color=#d07f7f]{ModSettingsText.UnsupportedType(valueType.Name)}[/color]"
         };
     }
 
@@ -428,7 +440,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
         for (int i = 0; i < options.Count; i++)
         {
-            dropdown.AddItem(options[i], i);
+            dropdown.AddItem(ConfigLocalization.GetOptionText(entry, options[i]), i);
         }
 
         dropdown.ItemSelected += index =>
@@ -438,7 +450,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
                 return;
             }
 
-            string selectedText = dropdown.GetItemText((int)index);
+            string selectedText = options[(int)index];
             object? converted = valueType.IsEnum
                 ? Enum.Parse(valueType, selectedText, ignoreCase: true)
                 : selectedText;
@@ -546,7 +558,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
     {
         var button = new Button
         {
-            Text = entry.ButtonText,
+            Text = ConfigLocalization.GetButtonText(entry),
             CustomMinimumSize = new Vector2(180f, 42f)
         };
 
@@ -608,6 +620,40 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         if (bindings.TryGetValue(entry.Key, out Action<object?>? updateBinding))
         {
             updateBinding(value);
+        }
+    }
+
+    private void OnLocaleChanged()
+    {
+        RefreshStaticText();
+        RebuildContent();
+    }
+
+    private void RefreshStaticText()
+    {
+        if (titleLabel != null)
+        {
+            titleLabel.Text = $"[gold]{ModSettingsText.ConfigTitle(GetModName())}[/gold]";
+        }
+
+        if (subtitleLabel != null)
+        {
+            subtitleLabel.Text = BuildSubtitle();
+        }
+
+        if (hintLabel != null)
+        {
+            hintLabel.Text = $"[color=#aab7bc]{ModSettingsText.ChangesSavedImmediately()}[/color]";
+        }
+
+        if (resetButton != null)
+        {
+            resetButton.Text = ModSettingsText.Reset();
+        }
+
+        if (closeButton != null)
+        {
+            closeButton.Text = ModSettingsText.Close();
         }
     }
 

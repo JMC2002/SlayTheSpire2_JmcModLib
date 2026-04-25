@@ -16,7 +16,6 @@ internal static class ModSettingsTabBridge
         ?? throw new MissingMethodException(typeof(NSettingsTabManager).FullName, "SwitchTabTo");
 
     private const string TabName = "JmcModLibModSettingsTab";
-    private const string TabLabel = "模组设置";
     private static readonly StringName InstalledMetaKey = new("jmcmodlib_mod_settings_tab_installed");
 
     internal static void Install(NSettingsScreen screen)
@@ -42,8 +41,10 @@ internal static class ModSettingsTabBridge
             return;
         }
 
-        if (tabs.Keys.Any(tab => tab.Name == TabName))
+        NSettingsTab? existingTab = tabs.Keys.FirstOrDefault(tab => tab.Name == TabName);
+        if (existingTab != null)
         {
+            ApplyLabel(existingTab, ModSettingsText.TabLabel());
             screen.SetMeta(InstalledMetaKey, true);
             return;
         }
@@ -54,7 +55,7 @@ internal static class ModSettingsTabBridge
         newTab.Position = ComputeTabPosition(manager);
         manager.AddChild(newTab);
         manager.MoveChild(newTab, templateTab.GetIndex() + 1);
-        ApplyLabel(newTab, TabLabel);
+        ApplyLabel(newTab, ModSettingsText.TabLabel());
         newTab.Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(_ => SwitchTo(manager, newTab)));
 
         ModSettingsPanel newPanel = ModSettingsPanel.Create();

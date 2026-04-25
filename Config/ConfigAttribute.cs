@@ -24,6 +24,14 @@ public sealed class ConfigAttribute(
 
     public string? Description { get; set; }
 
+    public string? LocTable { get; set; }
+
+    public string? DisplayNameKey { get; set; }
+
+    public string? DescriptionKey { get; set; }
+
+    public string? GroupKey { get; set; }
+
     public int Order { get; set; }
 
     public bool RestartRequired { get; set; }

@@ -22,6 +22,8 @@ internal sealed class SettingsUiTemplates
 
     public NSettingsButton? ButtonTemplate { get; private init; }
 
+    public NSettingsButton? ResetButtonTemplate { get; private init; }
+
     public Control? CompactButtonTemplate { get; private init; }
 
     public MegaRichTextLabel? RichLabelTemplate { get; private init; }
@@ -34,6 +36,15 @@ internal sealed class SettingsUiTemplates
         && DropdownTemplate != null
         && DropdownItemTemplate != null
         && ButtonTemplate != null;
+
+    public Control? GetButtonTemplate(UIButtonColor color)
+    {
+        return color switch
+        {
+            UIButtonColor.Reset => ResetButtonTemplate ?? ButtonTemplate ?? CompactButtonTemplate,
+            _ => ButtonTemplate ?? CompactButtonTemplate
+        };
+    }
 
     public static SettingsUiTemplates Resolve(Node context)
     {
@@ -71,6 +82,13 @@ internal sealed class SettingsUiTemplates
         NSettingsButton? buttonTemplate =
             screen.GetNodeOrNull<NSettingsButton>("%FeedbackButton")
             ?? FindDescendantByName<NSettingsButton>(screen, "FeedbackButton");
+        NSettingsButton? resetButtonTemplate =
+            FindDescendant<NResetGameplayButton>(GetPanelRow(screen, "%GeneralSettings", "ResetGameplay"))
+            ?? FindDescendant<NResetGraphicsButton>(GetPanelRow(screen, "%GraphicsSettings", "ResetGraphics"))
+            ?? FindDescendant<NResetTutorialsButton>(GetPanelRow(screen, "%GeneralSettings", "ResetTutorials"))
+            ?? FindDescendantByName<NSettingsButton>(screen, "ResetGameplay")
+            ?? FindDescendantByName<NSettingsButton>(screen, "ResetGraphics")
+            ?? FindDescendantByName<NSettingsButton>(screen, "ResetTutorials");
         NSettingsPanel? inputSettingsPanel = screen.GetNodeOrNull<NSettingsPanel>("%InputSettings");
         Control? compactButtonTemplate =
             inputSettingsPanel?.GetNodeOrNull<Control>("%ResetToDefaultButton")
@@ -88,6 +106,11 @@ internal sealed class SettingsUiTemplates
         if (buttonTemplate == null)
         {
             ModLogger.Warn("Could not find FeedbackButton; mod setting action buttons will fall back to plain Godot buttons.");
+        }
+
+        if (resetButtonTemplate == null)
+        {
+            ModLogger.Warn("Could not find a native reset settings button; reset-style mod buttons will fall back to FeedbackButton.");
         }
 
         if (dropdownTemplate == null || dropdownItemTemplate == null)
@@ -108,6 +131,7 @@ internal sealed class SettingsUiTemplates
             DropdownTemplate = dropdownTemplate,
             DropdownItemTemplate = dropdownItemTemplate,
             ButtonTemplate = buttonTemplate,
+            ResetButtonTemplate = resetButtonTemplate,
             CompactButtonTemplate = compactButtonTemplate,
             RichLabelTemplate = richLabelTemplate,
             DescriptionLabelTemplate = descriptionLabelTemplate
@@ -319,15 +343,22 @@ internal sealed class JmcSettingsButton : NSettingsButton
 {
     private string text = string.Empty;
     private Action? onPressed;
+    private UIButtonColor color;
     private bool hideImage;
 
-    public static JmcSettingsButton Create(Control template, string text, Action onPressed, bool hideImage = false)
+    public static JmcSettingsButton Create(
+        Control template,
+        string text,
+        Action onPressed,
+        UIButtonColor color = UIButtonColor.Default,
+        bool hideImage = false)
     {
         JmcSettingsButton button = new()
         {
             Name = "JmcSettingsButton",
             text = text,
             onPressed = onPressed,
+            color = color,
             hideImage = hideImage
         };
         NativeTemplateCloner.ApplyControlTemplate(template, button);
@@ -342,8 +373,47 @@ internal sealed class JmcSettingsButton : NSettingsButton
 
         Control? image = GetNodeOrNull<Control>("Image");
         image?.Visible = !hideImage;
+        ApplyColor(image);
 
         Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(_ => onPressed?.Invoke()));
+    }
+
+    private void ApplyColor(Control? image)
+    {
+        if (!JmcButtonColor.TryGetTint(color, out Color tint))
+        {
+            return;
+        }
+
+        Control? target = image ?? NativeTemplateCloner.FindDescendantByName<Control>(this, "Image");
+        if (target == null)
+        {
+            Modulate = tint;
+            return;
+        }
+
+        target.Modulate = tint;
+        target.SelfModulate = tint;
+    }
+}
+
+internal static class JmcButtonColor
+{
+    public static bool TryGetTint(UIButtonColor color, out Color tint)
+    {
+        tint = color switch
+        {
+            UIButtonColor.Green => new Color("65A83A"),
+            UIButtonColor.Red => new Color("B94A3F"),
+            UIButtonColor.Gold => new Color("D69A35"),
+            UIButtonColor.Blue => new Color("3C6F8F"),
+            _ => Colors.White
+        };
+
+        return color is UIButtonColor.Green
+            or UIButtonColor.Red
+            or UIButtonColor.Gold
+            or UIButtonColor.Blue;
     }
 }
 
@@ -494,6 +564,8 @@ internal sealed class JmcSettingsSlider : NSettingsSlider
     }
 }
 
+internal readonly record struct JmcDropdownOption(string Text, string Value);
+
 internal sealed class JmcDropdownItem : NDropdownItem
 {
     private string text = string.Empty;
@@ -526,7 +598,7 @@ internal sealed class JmcSettingsDropdown : NButton
 {
     private const int PopupZIndex = 4000;
 
-    private IReadOnlyList<string> options = [];
+    private IReadOnlyList<JmcDropdownOption> options = [];
     private string selectedValue = string.Empty;
     private NDropdownItem? itemTemplate;
     private Action<string>? onChanged;
@@ -552,6 +624,21 @@ internal sealed class JmcSettingsDropdown : NButton
         NSettingsDropdown template,
         NDropdownItem itemTemplate,
         IReadOnlyList<string> options,
+        string selectedValue,
+        Action<string> onChanged)
+    {
+        return Create(
+            template,
+            itemTemplate,
+            [.. options.Select(static option => new JmcDropdownOption(option, option))],
+            selectedValue,
+            onChanged);
+    }
+
+    public static JmcSettingsDropdown Create(
+        NSettingsDropdown template,
+        NDropdownItem itemTemplate,
+        IReadOnlyList<JmcDropdownOption> options,
         string selectedValue,
         Action<string> onChanged)
     {
@@ -627,7 +714,7 @@ internal sealed class JmcSettingsDropdown : NButton
     {
         suppressChanged = true;
         selectedValue = value;
-        currentLabel?.SetTextAutoSize(value);
+        currentLabel?.SetTextAutoSize(GetDisplayText(value));
         suppressChanged = false;
     }
 
@@ -644,9 +731,9 @@ internal sealed class JmcSettingsDropdown : NButton
             child.QueueFree();
         }
 
-        foreach (string option in options)
+        foreach (JmcDropdownOption option in options)
         {
-            JmcDropdownItem item = JmcDropdownItem.Create(itemTemplate, option, option);
+            JmcDropdownItem item = JmcDropdownItem.Create(itemTemplate, option.Text, option.Value);
             dropdownItems.AddChild(item);
             item.Connect(NDropdownItem.SignalName.Selected, Callable.From<NDropdownItem>(OnDropdownItemSelected));
         }
@@ -805,5 +892,13 @@ internal sealed class JmcSettingsDropdown : NButton
         {
             onChanged?.Invoke(value);
         }
+    }
+
+    private string GetDisplayText(string value)
+    {
+        return options.FirstOrDefault(option =>
+            string.Equals(option.Value, value, StringComparison.OrdinalIgnoreCase)) is { Text: { Length: > 0 } text }
+            ? text
+            : value;
     }
 }

@@ -21,6 +21,18 @@ public sealed class UIButtonAttribute(
 
     public string? Key { get; set; }
 
+    public string? LocTable { get; set; }
+
+    public string? DisplayNameKey { get; set; }
+
+    public string? DescriptionKey { get; set; }
+
+    public string? ButtonTextKey { get; set; }
+
+    public string? GroupKey { get; set; }
+
+    public UIButtonColor Color { get; set; } = UIButtonColor.Default;
+
     public int Order { get; set; }
 
     public string? HelpText { get; set; }

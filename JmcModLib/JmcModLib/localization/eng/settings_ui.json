@@ -1,0 +1,21 @@
+{
+  "EXTENSION.JMCMODLIB.UI.MOD_SETTINGS_TAB": "Mod Settings",
+  "EXTENSION.JMCMODLIB.UI.MOD_SETTINGS_TITLE": "Mod Settings",
+  "EXTENSION.JMCMODLIB.UI.MOD_SETTINGS_DESCRIPTION": "Adjust registered mod configuration here. Changes are saved immediately.",
+  "EXTENSION.JMCMODLIB.UI.CHANGES_SAVED_IMMEDIATELY": "Changes are saved immediately.",
+  "EXTENSION.JMCMODLIB.UI.NO_CONFIG_MODS": "No registered mods currently have configurable entries.",
+  "EXTENSION.JMCMODLIB.UI.NO_MANAGED_ASSEMBLY": "This mod has no loaded managed assembly, so its config cannot be shown.",
+  "EXTENSION.JMCMODLIB.UI.NO_CONFIG_ENTRIES": "This mod currently has no visible config entries.",
+  "EXTENSION.JMCMODLIB.UI.AUTHOR_LABEL": "Author",
+  "EXTENSION.JMCMODLIB.UI.VERSION_LABEL": "Version",
+  "EXTENSION.JMCMODLIB.UI.RESTART_REQUIRED": "Requires restart to fully apply.",
+  "EXTENSION.JMCMODLIB.UI.EXPAND": "Expand",
+  "EXTENSION.JMCMODLIB.UI.COLLAPSE": "Collapse",
+  "EXTENSION.JMCMODLIB.UI.EXPAND_ALL": "Expand All",
+  "EXTENSION.JMCMODLIB.UI.COLLAPSE_ALL": "Collapse All",
+  "EXTENSION.JMCMODLIB.UI.RESET_MOD": "Reset This Mod",
+  "EXTENSION.JMCMODLIB.UI.RESET": "Reset",
+  "EXTENSION.JMCMODLIB.UI.CLOSE": "Close",
+  "EXTENSION.JMCMODLIB.UI.CONFIG_TITLE": "{modName} Config",
+  "EXTENSION.JMCMODLIB.UI.UNSUPPORTED_TYPE": "Unsupported type: {type}"
+}
