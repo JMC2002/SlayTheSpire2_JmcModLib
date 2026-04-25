@@ -10,13 +10,20 @@ namespace JmcModLib.Config.UI;
 internal sealed class ModSettingsPanel : NSettingsPanel
 {
     private readonly Dictionary<string, Action<object?>> bindings = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, bool> CollapsedSections = new(StringComparer.OrdinalIgnoreCase);
 
     private const float MinPadding = 50f;
     private const float ContentWidth = 1120f;
+    private const int IntroFontSize = 24;
+    private const float CollapseButtonWidth = 240f;
+    private const float GlobalButtonWidth = 260f;
+    private const float ActionButtonHeight = 56f;
 
     private CenterContainer? centerRoot;
     private VBoxContainer? root;
     private VBoxContainer? listRoot;
+    private HBoxContainer? titleActions;
+    private SettingsUiTemplates? nativeTemplates;
     private bool suppressControlEvents;
 
     public static ModSettingsPanel Create()
@@ -30,6 +37,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     public override void _Ready()
     {
+        nativeTemplates = SettingsUiTemplates.Resolve(this);
         BuildLayout();
         Connect(CanvasItem.SignalName.VisibilityChanged, Callable.From(OnVisibilityChange));
         GetViewport().Connect(Viewport.SignalName.SizeChanged, Callable.From(RefreshPanelSize));
@@ -88,23 +96,30 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         root.AddThemeConstantOverride("separation", 14);
         centerRoot.AddChild(root);
 
-        var title = new MegaRichTextLabel
+        var titleRow = new HBoxContainer
         {
-            BbcodeEnabled = true,
-            FitContent = true,
+            Name = "TitleRow",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = "[gold]模组设置[/gold]"
+            SizeFlagsVertical = SizeFlags.ShrinkBegin
         };
-        root.AddChild(title);
+        titleRow.AddThemeConstantOverride("separation", 20);
 
-        root.AddChild(new RichTextLabel
+        Control title = CreateStyledText("[gold]模组设置[/gold]");
+        title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        title.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        titleRow.AddChild(title);
+
+        titleActions = new HBoxContainer
         {
-            BbcodeEnabled = true,
-            FitContent = true,
-            ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = "[color=#aab7bc]在这里直接调整已注册模组的配置项，修改会立即保存。[/color]"
-        });
+            Name = "TitleActions",
+            SizeFlagsHorizontal = SizeFlags.ShrinkEnd,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter
+        };
+        titleActions.AddThemeConstantOverride("separation", 12);
+        titleRow.AddChild(titleActions);
+        root.AddChild(titleRow);
+
+        root.AddChild(CreateDescriptionText("[color=#aab7bc]在这里直接调整已注册模组的配置项，修改会立即保存。[/color]"));
 
         root.AddChild(new HSeparator());
 
@@ -113,7 +128,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ShrinkBegin
         };
-        listRoot.AddThemeConstantOverride("separation", 12);
+        listRoot.AddThemeConstantOverride("separation", 16);
         root.AddChild(listRoot);
     }
 
@@ -138,6 +153,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             .ToList();
 
         var focusableControls = new List<Control>();
+        RefreshTitleActions(modsWithConfig, focusableControls);
 
         if (modsWithConfig.Count == 0)
         {
@@ -154,13 +170,13 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         UpdateFocusMap(focusableControls);
         RefreshPanelSize();
     }
-
     private Control BuildModSection(Mod mod, List<Control> focusableControls)
     {
         string name = mod.manifest?.name ?? mod.manifest?.id ?? "Unknown Mod";
         string version = mod.manifest?.version ?? "unknown";
         string author = mod.manifest?.author ?? "unknown";
         string? description = mod.manifest?.description;
+        bool isCollapsed = IsSectionCollapsed(mod);
 
         var wrapper = new VBoxContainer
         {
@@ -173,97 +189,71 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
+        header.AddThemeConstantOverride("separation", 18);
         wrapper.AddChild(header);
 
-        var title = new RichTextLabel
-        {
-            BbcodeEnabled = true,
-            FitContent = true,
-            ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = $"[gold]{name}[/gold] [color=#aab7bc]v{version}[/color]"
-        };
+        Control title = CreateStyledText($"[gold]{name}[/gold] [color=#aab7bc]v{version}[/color]");
+        title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         header.AddChild(title);
+
+        Control collapseButton = BuildCollapseButton(mod, isCollapsed);
+        header.AddChild(collapseButton);
+        focusableControls.Add(collapseButton);
 
         if (mod.assembly != null)
         {
-            var resetButton = new Button
-            {
-                Text = "重置本模组",
-                FocusMode = FocusModeEnum.All,
-                CustomMinimumSize = new Vector2(150f, 42f)
-            };
-            resetButton.Pressed += () => ResetModConfig(mod.assembly);
+            Control resetButton = BuildResetButton(mod.assembly);
             header.AddChild(resetButton);
             focusableControls.Add(resetButton);
         }
 
-        wrapper.AddChild(new RichTextLabel
+        if (!isCollapsed)
         {
-            BbcodeEnabled = true,
-            FitContent = true,
-            ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = $"[color=#aab7bc]作者:[/color] {author}"
-        });
+            wrapper.AddChild(CreateStyledText($"[color=#aab7bc]作者:[/color] {author}"));
 
-        if (!string.IsNullOrWhiteSpace(description))
-        {
-            wrapper.AddChild(new RichTextLabel
+            if (!string.IsNullOrWhiteSpace(description))
             {
-                BbcodeEnabled = true,
-                FitContent = true,
-                ScrollActive = false,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                Text = $"[color=#d0d8dc]{description}[/color]"
-            });
-        }
-
-        if (mod.assembly == null)
-        {
-            wrapper.AddChild(BuildNotice("该模组未加载托管程序集，无法显示配置。"));
-            wrapper.AddChild(new HSeparator());
-            return wrapper;
-        }
-
-        IReadOnlyCollection<ConfigEntry> entries = ConfigManager.GetEntries(mod.assembly);
-        if (entries.Count == 0)
-        {
-            wrapper.AddChild(BuildNotice("该模组当前没有可显示的配置项。"));
-            wrapper.AddChild(new HSeparator());
-            return wrapper;
-        }
-
-        List<string> groups = ConfigManager.GetGroups(mod.assembly).ToList();
-        bool hideDefaultGroupHeader = groups.Count == 1 && groups[0] == ConfigAttribute.DefaultGroup;
-
-        foreach (string group in groups)
-        {
-            if (!hideDefaultGroupHeader)
-            {
-                wrapper.AddChild(BuildGroupHeader(group));
+                wrapper.AddChild(CreateStyledText($"[color=#d0d8dc]{description}[/color]"));
             }
 
-            foreach (ConfigEntry entry in ConfigManager.GetEntries(group, mod.assembly))
+            if (mod.assembly == null)
             {
-                wrapper.AddChild(BuildEntryRow(entry, focusableControls));
+                wrapper.AddChild(BuildNotice("该模组未加载托管程序集，无法显示配置。"));
+                wrapper.AddChild(new HSeparator());
+                return wrapper;
+            }
+
+            IReadOnlyCollection<ConfigEntry> entries = ConfigManager.GetEntries(mod.assembly);
+            if (entries.Count == 0)
+            {
+                wrapper.AddChild(BuildNotice("该模组当前没有可显示的配置项。"));
+                wrapper.AddChild(new HSeparator());
+                return wrapper;
+            }
+
+            List<string> groups = ConfigManager.GetGroups(mod.assembly).ToList();
+            bool hideDefaultGroupHeader = groups.Count == 1 && groups[0] == ConfigAttribute.DefaultGroup;
+
+            foreach (string group in groups)
+            {
+                if (!hideDefaultGroupHeader)
+                {
+                    wrapper.AddChild(BuildGroupHeader(group));
+                }
+
+                foreach (ConfigEntry entry in ConfigManager.GetEntries(group, mod.assembly))
+                {
+                    wrapper.AddChild(BuildEntryRow(entry, focusableControls));
+                }
             }
         }
 
         wrapper.AddChild(new HSeparator());
         return wrapper;
     }
-
     private Control BuildNotice(string text)
     {
-        return new RichTextLabel
-        {
-            BbcodeEnabled = true,
-            FitContent = true,
-            ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = $"[color=#d0d8dc]{text}[/color]"
-        };
+        return CreateStyledText($"[color=#d0d8dc]{text}[/color]");
     }
 
     private Control BuildGroupHeader(string group)
@@ -273,14 +263,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
 
-        wrapper.AddChild(new RichTextLabel
-        {
-            BbcodeEnabled = true,
-            FitContent = true,
-            ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = $"[color=#e0b24f]{group}[/color]"
-        });
+        wrapper.AddChild(CreateStyledText($"[color=#e0b24f]{group}[/color]"));
         wrapper.AddChild(new HSeparator());
         return wrapper;
     }
@@ -306,37 +289,16 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         };
         topRow.AddChild(labelColumn);
 
-        labelColumn.AddChild(new RichTextLabel
-        {
-            BbcodeEnabled = true,
-            FitContent = true,
-            ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Text = $"[b]{entry.DisplayName}[/b]"
-        });
+        labelColumn.AddChild(CreateStyledText($"[b]{entry.DisplayName}[/b]"));
 
         if (!string.IsNullOrWhiteSpace(entry.Attribute.Description))
         {
-            labelColumn.AddChild(new RichTextLabel
-            {
-                BbcodeEnabled = true,
-                FitContent = true,
-                ScrollActive = false,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                Text = $"[color=#aab7bc]{entry.Attribute.Description}[/color]"
-            });
+            labelColumn.AddChild(CreateStyledText($"[color=#aab7bc]{entry.Attribute.Description}[/color]"));
         }
 
         if (entry.Attribute.RestartRequired)
         {
-            labelColumn.AddChild(new RichTextLabel
-            {
-                BbcodeEnabled = true,
-                FitContent = true,
-                ScrollActive = false,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                Text = "[color=#e0b24f]需要重启游戏后完全生效。[/color]"
-            });
+            labelColumn.AddChild(CreateStyledText("[color=#e0b24f]需要重启游戏后完全生效。[/color]"));
         }
 
         Control editor = BuildEditor(entry, focusableControls);
@@ -382,18 +344,37 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             return BuildSpinBoxEditor(entry, valueType, focusableControls);
         }
 
-        return new RichTextLabel
-        {
-            BbcodeEnabled = true,
-            FitContent = true,
-            ScrollActive = false,
-            CustomMinimumSize = new Vector2(240f, 0f),
-            Text = $"[color=#d07f7f]Unsupported type: {valueType.Name}[/color]"
-        };
+        Control unsupported = CreateStyledText($"[color=#d07f7f]Unsupported type: {valueType.Name}[/color]");
+        unsupported.CustomMinimumSize = new Vector2(240f, 0f);
+        return unsupported;
     }
 
     private Control BuildBooleanEditor(ConfigEntry entry, List<Control> focusableControls)
     {
+        if (nativeTemplates?.TickboxTemplate != null)
+        {
+            var tickbox = JmcSettingsTickbox.Create(
+                nativeTemplates.TickboxTemplate,
+                ToBoolean(entry.GetValue()),
+                toggled =>
+                {
+                    if (!suppressControlEvents)
+                    {
+                        TrySetEntryValue(entry, toggled);
+                    }
+                });
+
+            bindings[CreateBindingKey(entry)] = rawValue =>
+            {
+                suppressControlEvents = true;
+                tickbox.SetValue(ToBoolean(rawValue));
+                suppressControlEvents = false;
+            };
+
+            focusableControls.Add(tickbox);
+            return tickbox;
+        }
+
         var checkbox = new CheckBox
         {
             FocusMode = FocusModeEnum.All,
@@ -457,12 +438,6 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Type valueType,
         List<Control> focusableControls)
     {
-        var dropdown = new OptionButton
-        {
-            FocusMode = FocusModeEnum.All,
-            CustomMinimumSize = new Vector2(260f, 0f)
-        };
-
         IReadOnlyList<string> options = valueType.IsEnum
             ? Enum.GetNames(valueType)
                 .Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)
@@ -475,6 +450,43 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         {
             options = [entry.GetValue()?.ToString() ?? string.Empty];
         }
+
+        if (nativeTemplates?.DropdownTemplate != null && nativeTemplates.DropdownItemTemplate != null)
+        {
+            var nativeDropdown = JmcSettingsDropdown.Create(
+                nativeTemplates.DropdownTemplate,
+                nativeTemplates.DropdownItemTemplate,
+                options,
+                entry.GetValue()?.ToString() ?? string.Empty,
+                selectedText =>
+                {
+                    if (suppressControlEvents)
+                    {
+                        return;
+                    }
+
+                    object? converted = valueType.IsEnum
+                        ? Enum.Parse(valueType, selectedText, ignoreCase: true)
+                        : selectedText;
+                    TrySetEntryValue(entry, converted);
+                });
+
+            bindings[CreateBindingKey(entry)] = rawValue =>
+            {
+                suppressControlEvents = true;
+                nativeDropdown.SetValue(rawValue?.ToString() ?? string.Empty);
+                suppressControlEvents = false;
+            };
+
+            focusableControls.Add(nativeDropdown);
+            return nativeDropdown;
+        }
+
+        var dropdown = new OptionButton
+        {
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(260f, 0f)
+        };
 
         for (int i = 0; i < options.Count; i++)
         {
@@ -553,6 +565,38 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Type valueType,
         List<Control> focusableControls)
     {
+        if (nativeTemplates?.SliderTemplate != null)
+        {
+            var nativeSlider = JmcSettingsSlider.Create(
+                nativeTemplates.SliderTemplate,
+                sliderAttribute.Min,
+                sliderAttribute.Max,
+                sliderAttribute.Step,
+                System.Convert.ToDouble(ConfigValueConverter.Convert(entry.GetValue(), valueType), CultureInfo.InvariantCulture),
+                value => FormatNumericValue(value, valueType),
+                value =>
+                {
+                    if (suppressControlEvents)
+                    {
+                        return;
+                    }
+
+                    object converted = ConfigValueConverter.Convert(value, valueType)!;
+                    TrySetEntryValue(entry, converted);
+                });
+
+            bindings[CreateBindingKey(entry)] = rawValue =>
+            {
+                double numericValue = System.Convert.ToDouble(ConfigValueConverter.Convert(rawValue, valueType), CultureInfo.InvariantCulture);
+                suppressControlEvents = true;
+                nativeSlider.SetValue(numericValue);
+                suppressControlEvents = false;
+            };
+
+            focusableControls.Add(nativeSlider);
+            return nativeSlider;
+        }
+
         var wrapper = new HBoxContainer
         {
             CustomMinimumSize = new Vector2(320f, 0f)
@@ -605,6 +649,148 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     {
         ConfigManager.ResetAssembly(assembly);
         RebuildContent();
+    }
+
+    private void RefreshTitleActions(IReadOnlyCollection<Mod> mods, List<Control> focusableControls)
+    {
+        if (titleActions == null)
+        {
+            return;
+        }
+
+        foreach (Node child in titleActions.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        if (mods.Count == 0)
+        {
+            return;
+        }
+
+        bool hasExpanded = mods.Any(mod => !IsSectionCollapsed(mod));
+
+        Control button = BuildGlobalCollapseButton(mods, hasExpanded);
+        button.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+        button.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        titleActions.AddChild(button);
+        focusableControls.Add(button);
+    }
+
+    private Control BuildCollapseButton(Mod mod, bool isCollapsed)
+    {
+        string label = isCollapsed ? "展开" : "折叠";
+
+        void ToggleSection()
+        {
+            CollapsedSections[GetSectionKey(mod)] = !isCollapsed;
+            RebuildContent();
+        }
+
+        return BuildCompactActionButton(label, CollapseButtonWidth, ToggleSection);
+    }
+
+    private Control BuildGlobalCollapseButton(IReadOnlyCollection<Mod> mods, bool hasExpanded)
+    {
+        string label = hasExpanded ? "全部折叠" : "全部展开";
+
+        void ToggleAll()
+        {
+            SetAllSectionsCollapsed(mods, hasExpanded);
+            RebuildContent();
+        }
+
+        return BuildCompactActionButton(label, GlobalButtonWidth, ToggleAll);
+    }
+
+    private Control BuildCompactActionButton(string label, float width, Action onPressed)
+    {
+        if (nativeTemplates?.ButtonTemplate != null)
+        {
+            Control nativeButton = JmcSettingsButton.Create(nativeTemplates.ButtonTemplate, label, onPressed, hideImage: false);
+            nativeButton.CustomMinimumSize = new Vector2(width, ActionButtonHeight);
+            nativeButton.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+            nativeButton.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            return nativeButton;
+        }
+
+        var button = new Button
+        {
+            Text = label,
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(width, ActionButtonHeight),
+            SizeFlagsHorizontal = SizeFlags.ShrinkEnd,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter
+        };
+        button.Pressed += onPressed;
+        return button;
+    }
+    private Control BuildResetButton(System.Reflection.Assembly assembly)
+    {
+        if (nativeTemplates?.ButtonTemplate != null)
+        {
+            Control button = JmcSettingsButton.Create(nativeTemplates.ButtonTemplate, "重置本模组", () => ResetModConfig(assembly), hideImage: false);
+            button.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+            button.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            return button;
+        }
+
+        var resetButton = new Button
+        {
+            Text = "重置本模组",
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(150f, 42f)
+        };
+        resetButton.Pressed += () => ResetModConfig(assembly);
+        return resetButton;
+    }
+
+    private Control CreateStyledText(string text)
+    {
+        if (nativeTemplates?.RichLabelTemplate != null)
+        {
+            MegaRichTextLabel label = (MegaRichTextLabel)nativeTemplates.RichLabelTemplate.Duplicate();
+            label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            label.FitContent = true;
+            label.ScrollActive = false;
+            label.Text = text;
+            return label;
+        }
+
+        return new MegaRichTextLabel
+        {
+            BbcodeEnabled = true,
+            FitContent = true,
+            ScrollActive = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = text
+        };
+    }
+
+    private Control CreateDescriptionText(string text)
+    {
+        MegaRichTextLabel label;
+        if (nativeTemplates?.RichLabelTemplate != null)
+        {
+            label = (MegaRichTextLabel)nativeTemplates.RichLabelTemplate.Duplicate();
+        }
+        else
+        {
+            label = new MegaRichTextLabel
+            {
+                BbcodeEnabled = true
+            };
+        }
+
+        label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        label.FitContent = true;
+        label.ScrollActive = false;
+        label.AutoSizeEnabled = false;
+        label.MinFontSize = IntroFontSize;
+        label.MaxFontSize = IntroFontSize;
+        label.Text = text;
+        label.Call("SetFontSize", IntroFontSize);
+        return label;
     }
 
     private void TrySetEntryValue(ConfigEntry entry, object? rawValue)
@@ -691,6 +877,26 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return $"{entry.Assembly.FullName}::{entry.Key}";
     }
 
+    private static string GetSectionKey(Mod mod)
+    {
+        return mod.manifest?.id
+            ?? mod.manifest?.name
+            ?? mod.assembly?.FullName
+            ?? "unknown";
+    }
+
+    private static bool IsSectionCollapsed(Mod mod)
+    {
+        return CollapsedSections.TryGetValue(GetSectionKey(mod), out bool isCollapsed) && isCollapsed;
+    }
+
+    private static void SetAllSectionsCollapsed(IEnumerable<Mod> mods, bool collapsed)
+    {
+        foreach (Mod mod in mods)
+        {
+            CollapsedSections[GetSectionKey(mod)] = collapsed;
+        }
+    }
     private static bool IsNumericType(Type type)
     {
         return type == typeof(byte)
@@ -752,3 +958,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         };
     }
 }
+
+
+
+
