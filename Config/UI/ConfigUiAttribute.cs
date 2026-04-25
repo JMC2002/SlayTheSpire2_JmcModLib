@@ -1,4 +1,61 @@
+using System.Reflection;
+using JmcModLib.Config;
+using MegaCrit.Sts2.Core.Logging;
+
 namespace JmcModLib.Config.UI;
+
+/// <summary>
+/// Adds a button row to the in-game mod settings UI.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+public sealed class UIButtonAttribute(
+    string description,
+    string buttonText = "按钮",
+    string group = ConfigAttribute.DefaultGroup) : Attribute
+{
+    public string Description { get; } = description;
+
+    public string ButtonText { get; } = buttonText;
+
+    public string Group { get; } = group;
+
+    public string? Key { get; set; }
+
+    public int Order { get; set; }
+
+    public string? HelpText { get; set; }
+
+    public static bool IsValidMethod(MethodInfo method, out LogLevel? level, out string? errorMessage)
+    {
+        ArgumentNullException.ThrowIfNull(method);
+
+        level = null;
+        errorMessage = null;
+
+        if (!method.IsStatic)
+        {
+            level = LogLevel.Error;
+            errorMessage = "UIButton method must be static.";
+            return false;
+        }
+
+        ParameterInfo[] parameters = method.GetParameters();
+        if (parameters.Length != 0)
+        {
+            level = LogLevel.Error;
+            errorMessage = $"UIButton method must have no parameters, but {parameters.Length} were found.";
+            return false;
+        }
+
+        if (method.ReturnType != typeof(void))
+        {
+            level = LogLevel.Warn;
+            errorMessage = $"UIButton method {method.Name} should return void. The return value will be ignored.";
+        }
+
+        return true;
+    }
+}
 
 /// <summary>
 /// Base metadata attribute for later in-game config UI bridging.

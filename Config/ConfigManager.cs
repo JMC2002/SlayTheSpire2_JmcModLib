@@ -41,6 +41,7 @@ public static class ConfigManager
 
         AttributeRouting.Init();
         AttributeRouting.RegisterHandler<ConfigAttribute>(new ConfigAttributeHandler());
+        AttributeRouting.RegisterHandler<UIButtonAttribute>(new UIButtonAttributeHandler());
         AttributeRouting.AssemblyScanned += OnAssemblyScanned;
         ModRegistry.OnUnregistered += OnModUnregistered;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -207,6 +208,36 @@ public static class ConfigManager
         return entry.Key;
     }
 
+    public static string RegisterButton(
+        string description,
+        Action action,
+        string buttonText = "按钮",
+        string group = ConfigAttribute.DefaultGroup,
+        Assembly? assembly = null,
+        string? storageKey = null,
+        string? helpText = null,
+        int order = 0)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+        ArgumentNullException.ThrowIfNull(action);
+
+        EnsureInitialized();
+
+        Assembly resolvedAssembly = ResolveAssembly(assembly);
+        ButtonEntry entry = ButtonEntry.Create(
+            resolvedAssembly,
+            description,
+            action,
+            buttonText,
+            group,
+            storageKey,
+            helpText,
+            order);
+
+        RegisterEntry(entry);
+        return entry.Key;
+    }
+
     public static void Unregister(Assembly? assembly = null)
     {
         Assembly resolvedAssembly = ResolveAssembly(assembly);
@@ -269,6 +300,12 @@ public static class ConfigManager
         {
             throw ex.InnerException ?? ex;
         }
+    }
+
+    internal static ButtonEntry BuildButtonEntry(Assembly assembly, MethodAccessor method, UIButtonAttribute attribute)
+    {
+        EnsureInitialized();
+        return ButtonEntry.FromMethod(assembly, method, attribute);
     }
 
     internal static void Persist(ConfigEntry entry, object? value)

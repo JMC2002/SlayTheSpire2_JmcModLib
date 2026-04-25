@@ -66,6 +66,40 @@ public sealed class RegistryBuilder
         return this;
     }
 
+    public RegistryBuilder RegisterButton(
+        out string key,
+        string description,
+        Action action,
+        string buttonText = "按钮",
+        string group = ConfigAttribute.DefaultGroup,
+        string? storageKey = null,
+        string? helpText = null,
+        int order = 0)
+    {
+        key = ConfigManager.RegisterButton(
+            description,
+            action,
+            buttonText,
+            group,
+            assembly,
+            storageKey,
+            helpText,
+            order);
+        return this;
+    }
+
+    public RegistryBuilder RegisterButton(
+        string description,
+        Action action,
+        string buttonText = "按钮",
+        string group = ConfigAttribute.DefaultGroup,
+        string? storageKey = null,
+        string? helpText = null,
+        int order = 0)
+    {
+        return RegisterButton(out _, description, action, buttonText, group, storageKey, helpText, order);
+    }
+
     public ModContext Done()
     {
         ModContext context = ModRegistry.GetContext(assembly)

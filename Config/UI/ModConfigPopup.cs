@@ -306,6 +306,11 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
     private Control BuildEditor(ConfigEntry entry)
     {
+        if (entry is ButtonEntry buttonEntry)
+        {
+            return BuildButtonEditor(buttonEntry);
+        }
+
         Type valueType = Nullable.GetUnderlyingType(entry.ValueType) ?? entry.ValueType;
         UIConfigAttribute? uiAttribute = entry.UIAttribute;
 
@@ -535,6 +540,29 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
         bindings[entry.Key](entry.GetValue());
         return wrapper;
+    }
+
+    private Button BuildButtonEditor(ButtonEntry entry)
+    {
+        var button = new Button
+        {
+            Text = entry.ButtonText,
+            CustomMinimumSize = new Vector2(180f, 42f)
+        };
+
+        button.Pressed += () =>
+        {
+            try
+            {
+                entry.Invoke();
+            }
+            catch (Exception ex)
+            {
+                ModLogger.Error($"Failed to invoke button entry {entry.Key}", ex, entry.Assembly);
+            }
+        };
+
+        return button;
     }
 
     private void TrySetEntryValue(ConfigEntry entry, object? rawValue)

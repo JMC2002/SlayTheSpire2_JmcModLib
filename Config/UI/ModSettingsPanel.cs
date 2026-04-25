@@ -42,6 +42,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Connect(CanvasItem.SignalName.VisibilityChanged, Callable.From(OnVisibilityChange));
         GetViewport().Connect(Viewport.SignalName.SizeChanged, Callable.From(RefreshPanelSize));
         ConfigManager.ValueChanged += OnConfigValueChanged;
+        ConfigManager.EntryRegistered += OnEntryRegistered;
         ConfigManager.AssemblyRegistered += OnAssemblyChanged;
         ConfigManager.AssemblyUnregistered += OnAssemblyChanged;
         RefreshPanelSize();
@@ -51,6 +52,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     public override void _ExitTree()
     {
         ConfigManager.ValueChanged -= OnConfigValueChanged;
+        ConfigManager.EntryRegistered -= OnEntryRegistered;
         ConfigManager.AssemblyRegistered -= OnAssemblyChanged;
         ConfigManager.AssemblyUnregistered -= OnAssemblyChanged;
         base._ExitTree();
@@ -310,6 +312,11 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private Control BuildEditor(ConfigEntry entry, List<Control> focusableControls)
     {
+        if (entry is ButtonEntry buttonEntry)
+        {
+            return BuildButtonEditor(buttonEntry, focusableControls);
+        }
+
         Type valueType = Nullable.GetUnderlyingType(entry.ValueType) ?? entry.ValueType;
         UIConfigAttribute? uiAttribute = entry.UIAttribute;
 
@@ -642,6 +649,25 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return wrapper;
     }
 
+    private Control BuildButtonEditor(ButtonEntry entry, List<Control> focusableControls)
+    {
+        Control button = BuildCompactActionButton(entry.ButtonText, GlobalButtonWidth, () => InvokeButtonEntry(entry));
+        focusableControls.Add(button);
+        return button;
+    }
+
+    private void InvokeButtonEntry(ButtonEntry entry)
+    {
+        try
+        {
+            entry.Invoke();
+        }
+        catch (Exception ex)
+        {
+            ModLogger.Error($"Failed to invoke button entry {entry.Key}", ex, entry.Assembly);
+        }
+    }
+
     private void ResetModConfig(System.Reflection.Assembly assembly)
     {
         ConfigManager.ResetAssembly(assembly);
@@ -812,6 +838,14 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         if (bindings.TryGetValue(CreateBindingKey(entry), out Action<object?>? updateBinding))
         {
             updateBinding(value);
+        }
+    }
+
+    private void OnEntryRegistered(ConfigEntry _)
+    {
+        if (Visible)
+        {
+            RebuildContent();
         }
     }
 
