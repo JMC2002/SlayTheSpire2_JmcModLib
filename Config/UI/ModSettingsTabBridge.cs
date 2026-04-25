@@ -36,8 +36,7 @@ internal static class ModSettingsTabBridge
             return;
         }
 
-        Dictionary<NSettingsTab, NSettingsPanel>? tabs = TabsField.GetValue(manager) as Dictionary<NSettingsTab, NSettingsPanel>;
-        if (tabs == null)
+        if (TabsField.GetValue(manager) is not Dictionary<NSettingsTab, NSettingsPanel> tabs)
         {
             ModLogger.Warn("Failed to install the mod settings tab because the tab lookup table was unavailable.");
             return;
@@ -86,11 +85,10 @@ internal static class ModSettingsTabBridge
 
     private static Vector2 ComputeTabPosition(NSettingsTabManager manager)
     {
-        List<NSettingsTab> tabs = manager
+        List<NSettingsTab> tabs = [.. manager
             .GetChildren()
             .OfType<NSettingsTab>()
-            .OrderBy(static tab => tab.Position.X)
-            .ToList();
+            .OrderBy(static tab => tab.Position.X)];
 
         if (tabs.Count == 0)
         {

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using JmcModLib.Config.Entry;
 using JmcModLib.Config.Storage;
 using JmcModLib.Config.UI;
@@ -114,7 +114,7 @@ public static class ConfigManager
             .OrderBy(static group => group, StringComparer.Ordinal);
     }
 
-    public static bool TryGetEntry(string key, out ConfigEntry? entry, Assembly? assembly = null)
+    public static bool TryGetEntry(string key, [NotNullWhen(true)] out ConfigEntry? entry, Assembly? assembly = null)
     {
         Assembly resolvedAssembly = ResolveAssembly(assembly);
         if (Entries.TryGetValue(resolvedAssembly, out ConcurrentDictionary<string, ConfigEntry>? lookup)
@@ -281,7 +281,7 @@ public static class ConfigManager
         }
     }
 
-    private static ConfigEntry CreateAttributeEntry<TValue>(
+    private static ConfigEntry<TValue> CreateAttributeEntry<TValue>(
         Assembly assembly,
         MemberAccessor member,
         ConfigAttribute attribute)
@@ -443,7 +443,7 @@ public static class ConfigManager
 
     private static void OnAssemblyScanned(Assembly assembly)
     {
-        if (Entries.TryGetValue(assembly, out ConcurrentDictionary<string, ConfigEntry>? lookup) && lookup.Count > 0)
+        if (Entries.TryGetValue(assembly, out ConcurrentDictionary<string, ConfigEntry>? lookup) && !lookup.IsEmpty)
         {
             AssemblyRegistered?.Invoke(assembly);
         }
@@ -482,9 +482,8 @@ public static class ConfigManager
         }
     }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static Assembly ResolveAssembly(Assembly? assembly)
     {
-        return assembly ?? Assembly.GetCallingAssembly();
+        return AssemblyResolver.Resolve(assembly, typeof(ConfigManager));
     }
 }

@@ -147,10 +147,9 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         bindings.Clear();
         _firstControl = null;
 
-        List<Mod> modsWithConfig = ModManager.Mods
+        List<Mod> modsWithConfig = [.. ModManager.Mods
             .Where(ModConfigUiBridge.HasConfig)
-            .OrderBy(static mod => mod.manifest?.name ?? mod.manifest?.id ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .OrderBy(static mod => mod.manifest?.name ?? mod.manifest?.id ?? string.Empty, StringComparer.OrdinalIgnoreCase)];
 
         var focusableControls = new List<Control>();
         RefreshTitleActions(modsWithConfig, focusableControls);
@@ -170,7 +169,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         UpdateFocusMap(focusableControls);
         RefreshPanelSize();
     }
-    private Control BuildModSection(Mod mod, List<Control> focusableControls)
+    private VBoxContainer BuildModSection(Mod mod, List<Control> focusableControls)
     {
         string name = mod.manifest?.name ?? mod.manifest?.id ?? "Unknown Mod";
         string version = mod.manifest?.version ?? "unknown";
@@ -231,7 +230,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
                 return wrapper;
             }
 
-            List<string> groups = ConfigManager.GetGroups(mod.assembly).ToList();
+            List<string> groups = [.. ConfigManager.GetGroups(mod.assembly)];
             bool hideDefaultGroupHeader = groups.Count == 1 && groups[0] == ConfigAttribute.DefaultGroup;
 
             foreach (string group in groups)
@@ -251,12 +250,12 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         wrapper.AddChild(new HSeparator());
         return wrapper;
     }
-    private Control BuildNotice(string text)
+    private MegaRichTextLabel BuildNotice(string text)
     {
         return CreateStyledText($"[color=#d0d8dc]{text}[/color]");
     }
 
-    private Control BuildGroupHeader(string group)
+    private VBoxContainer BuildGroupHeader(string group)
     {
         var wrapper = new VBoxContainer
         {
@@ -268,7 +267,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return wrapper;
     }
 
-    private Control BuildEntryRow(ConfigEntry entry, List<Control> focusableControls)
+    private VBoxContainer BuildEntryRow(ConfigEntry entry, List<Control> focusableControls)
     {
         var wrapper = new VBoxContainer
         {
@@ -401,7 +400,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return checkbox;
     }
 
-    private Control BuildStringEditor(ConfigEntry entry, List<Control> focusableControls)
+    private LineEdit BuildStringEditor(ConfigEntry entry, List<Control> focusableControls)
     {
         var lineEdit = new LineEdit
         {
@@ -439,9 +438,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         List<Control> focusableControls)
     {
         IReadOnlyList<string> options = valueType.IsEnum
-            ? Enum.GetNames(valueType)
-                .Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)
-                .ToArray()
+            ? [.. Enum.GetNames(valueType).Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)]
             : dropdownAttribute?.Options.Count > 0
                 ? dropdownAttribute.Options
                 : [entry.GetValue()?.ToString() ?? string.Empty];
@@ -524,7 +521,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return dropdown;
     }
 
-    private Control BuildSpinBoxEditor(ConfigEntry entry, Type valueType, List<Control> focusableControls)
+    private SpinBox BuildSpinBoxEditor(ConfigEntry entry, Type valueType, List<Control> focusableControls)
     {
         var spinBox = new SpinBox
         {
@@ -651,7 +648,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         RebuildContent();
     }
 
-    private void RefreshTitleActions(IReadOnlyCollection<Mod> mods, List<Control> focusableControls)
+    private void RefreshTitleActions(List<Mod> mods, List<Control> focusableControls)
     {
         if (titleActions == null)
         {
@@ -745,7 +742,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return resetButton;
     }
 
-    private Control CreateStyledText(string text)
+    private MegaRichTextLabel CreateStyledText(string text)
     {
         if (nativeTemplates?.RichLabelTemplate != null)
         {
@@ -767,7 +764,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         };
     }
 
-    private Control CreateDescriptionText(string text)
+    private MegaRichTextLabel CreateDescriptionText(string text)
     {
         MegaRichTextLabel label;
         if (nativeTemplates?.RichLabelTemplate != null)

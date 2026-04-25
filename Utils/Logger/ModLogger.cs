@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using JmcModLib.Core;
 using MegaCrit.Sts2.Core.Logging;
 
@@ -325,9 +324,8 @@ public static partial class ModLogger
         return builder.ToString();
     }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
     private static Assembly ResolveAssembly(Assembly? assembly)
     {
-        return assembly ?? Assembly.GetCallingAssembly();
+        return AssemblyResolver.Resolve(assembly, typeof(ModLogger));
     }
 }

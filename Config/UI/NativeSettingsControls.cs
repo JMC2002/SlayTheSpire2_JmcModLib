@@ -1,4 +1,3 @@
-using System.Reflection;
 using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Combat;
@@ -6,6 +5,7 @@ using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Screens.ModdingScreen;
 using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
 using Godot;
+using JmcModLib.Reflection;
 using JmcModLib.Utils;
 
 namespace JmcModLib.Config.UI;
@@ -167,7 +167,7 @@ internal sealed class SettingsUiTemplates
             return null;
         }
 
-        FieldInfo? field = GetFieldInHierarchy(dropdown.GetType(), "_dropdownItemScene");
+        MemberAccessor? field = GetMemberInHierarchy(dropdown.GetType(), "_dropdownItemScene");
         if (field?.GetValue(dropdown) is not PackedScene scene)
         {
             return null;
@@ -184,14 +184,16 @@ internal sealed class SettingsUiTemplates
         }
     }
 
-    private static FieldInfo? GetFieldInHierarchy(Type type, string name)
+    private static MemberAccessor? GetMemberInHierarchy(Type type, string name)
     {
         for (Type? current = type; current != null; current = current.BaseType)
         {
-            FieldInfo? field = current.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field != null)
+            try
             {
-                return field;
+                return MemberAccessor.Get(current, name);
+            }
+            catch (MissingMemberException)
+            {
             }
         }
 
@@ -321,7 +323,7 @@ internal sealed class JmcSettingsButton : NSettingsButton
 
     public static JmcSettingsButton Create(Control template, string text, Action onPressed, bool hideImage = false)
     {
-        JmcSettingsButton button = new JmcSettingsButton
+        JmcSettingsButton button = new()
         {
             Name = "JmcSettingsButton",
             text = text,
@@ -339,10 +341,7 @@ internal sealed class JmcSettingsButton : NSettingsButton
         GetNodeOrNull<MegaRichTextLabel>("Label")?.SetTextAutoSize(text);
 
         Control? image = GetNodeOrNull<Control>("Image");
-        if (image != null)
-        {
-            image.Visible = !hideImage;
-        }
+        image?.Visible = !hideImage;
 
         Connect(NClickableControl.SignalName.Released, Callable.From<NButton>(_ => onPressed?.Invoke()));
     }
@@ -359,7 +358,7 @@ internal sealed class JmcSettingsTickbox : NButton
 
     public static JmcSettingsTickbox Create(NSettingsTickbox template, bool initialValue, Action<bool> onChanged)
     {
-        JmcSettingsTickbox tickbox = new JmcSettingsTickbox
+        JmcSettingsTickbox tickbox = new()
         {
             Name = "JmcSettingsTickbox",
             initialValue = initialValue,
@@ -416,15 +415,9 @@ internal sealed class JmcSettingsTickbox : NButton
     {
         isTicked = value;
 
-        if (tickedImage != null)
-        {
-            tickedImage.Visible = value;
-        }
+        tickedImage?.Visible = value;
 
-        if (notTickedImage != null)
-        {
-            notTickedImage.Visible = !value;
-        }
+        notTickedImage?.Visible = !value;
 
         if (notify)
         {
@@ -453,7 +446,7 @@ internal sealed class JmcSettingsSlider : NSettingsSlider
         Func<double, string> formatter,
         Action<double> onChanged)
     {
-        JmcSettingsSlider slider = new JmcSettingsSlider
+        JmcSettingsSlider slider = new()
         {
             Name = "JmcSettingsSlider",
             minValue = minValue,
@@ -510,7 +503,7 @@ internal sealed class JmcDropdownItem : NDropdownItem
 
     public static JmcDropdownItem Create(NDropdownItem template, string text, string value)
     {
-        JmcDropdownItem item = new JmcDropdownItem
+        JmcDropdownItem item = new()
         {
             Name = "JmcDropdownItem",
             text = text,
@@ -533,7 +526,7 @@ internal sealed class JmcSettingsDropdown : NButton
 {
     private const int PopupZIndex = 4000;
 
-    private IReadOnlyList<string> options = Array.Empty<string>();
+    private IReadOnlyList<string> options = [];
     private string selectedValue = string.Empty;
     private NDropdownItem? itemTemplate;
     private Action<string>? onChanged;
@@ -562,7 +555,7 @@ internal sealed class JmcSettingsDropdown : NButton
         string selectedValue,
         Action<string> onChanged)
     {
-        JmcSettingsDropdown dropdown = new JmcSettingsDropdown
+        JmcSettingsDropdown dropdown = new()
         {
             Name = "JmcSettingsDropdown",
             options = options,
@@ -677,10 +670,7 @@ internal sealed class JmcSettingsDropdown : NButton
     protected override void OnFocus()
     {
         base.OnFocus();
-        if (currentHighlight != null)
-        {
-            currentHighlight.Modulate = new Color("3C5B6B");
-        }
+        currentHighlight?.Modulate = new Color("3C5B6B");
 
         if (NControllerManager.Instance?.IsUsingController == true)
         {
@@ -691,10 +681,7 @@ internal sealed class JmcSettingsDropdown : NButton
     protected override void OnUnfocus()
     {
         base.OnUnfocus();
-        if (currentHighlight != null)
-        {
-            currentHighlight.Modulate = new Color("2C434F");
-        }
+        currentHighlight?.Modulate = new Color("2C434F");
 
         selectionReticle?.OnDeselect();
     }
@@ -708,10 +695,7 @@ internal sealed class JmcSettingsDropdown : NButton
 
         dropdownContainer.Visible = true;
         PreparePopupLayer();
-        if (dismisser != null)
-        {
-            dismisser.Visible = true;
-        }
+        dismisser?.Visible = true;
 
         isOpen = true;
         GetParent()?.MoveChild(this, GetParent().GetChildCount() - 1);
@@ -721,7 +705,7 @@ internal sealed class JmcSettingsDropdown : NButton
             return;
         }
 
-        List<NDropdownItem> items = dropdownItems.GetChildren().OfType<NDropdownItem>().ToList();
+        List<NDropdownItem> items = [.. dropdownItems.GetChildren().OfType<NDropdownItem>()];
         for (int i = 0; i < items.Count; i++)
         {
             items[i].UnhoverSelection();
@@ -737,15 +721,9 @@ internal sealed class JmcSettingsDropdown : NButton
 
     private void CloseDropdown()
     {
-        if (dismisser != null)
-        {
-            dismisser.Visible = false;
-        }
+        dismisser?.Visible = false;
 
-        if (dropdownContainer != null)
-        {
-            dropdownContainer.Visible = false;
-        }
+        dropdownContainer?.Visible = false;
 
         RestorePopupLayer();
         isOpen = false;
@@ -804,10 +782,7 @@ internal sealed class JmcSettingsDropdown : NButton
 
     private void PositionPopupLayer()
     {
-        if (dropdownContainer != null)
-        {
-            dropdownContainer.GlobalPosition = GlobalPosition + dropdownLocalPosition;
-        }
+        dropdownContainer?.GlobalPosition = GlobalPosition + dropdownLocalPosition;
 
         if (dismisser != null)
         {

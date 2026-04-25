@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Runtime.CompilerServices;
+using JmcModLib.Reflection;
 
 namespace JmcModLib.Core;
 
@@ -30,9 +30,56 @@ public static class ModRegistry
         return new RegistryBuilder(assembly);
     }
 
+    public static RegistryBuilder? Register(
+        bool deferredCompletion,
+        string modId,
+        string? displayName = null,
+        string? version = null,
+        Assembly? assembly = null)
+    {
+        RegistryBuilder builder = Register(modId, displayName, version, assembly);
+        if (deferredCompletion)
+        {
+            return builder;
+        }
+
+        builder.Done();
+        return null;
+    }
+
+    public static RegistryBuilder? Register(
+        bool deferredCompletion,
+        object? modInfo,
+        string? displayName = null,
+        string? version = null,
+        Assembly? assembly = null)
+    {
+        assembly = ResolveAssembly(assembly);
+        string? resolvedDisplayName = displayName
+            ?? ReadMetadataString(modInfo, "displayName", "DisplayName", "name", "Name");
+        string? resolvedVersion = version
+            ?? ReadMetadataString(modInfo, "version", "Version");
+        string resolvedModId =
+            ReadMetadataString(modInfo, "id", "Id", "modId", "ModId")
+            ?? resolvedDisplayName
+            ?? assembly.GetName().Name
+            ?? VersionInfo.GetName(assembly);
+
+        return Register(deferredCompletion, resolvedModId, resolvedDisplayName, resolvedVersion, assembly);
+    }
+
     public static RegistryBuilder Register<T>(string modId, string? displayName = null, string? version = null)
     {
         return Register(modId, displayName, version, typeof(T).Assembly);
+    }
+
+    public static RegistryBuilder? Register<T>(
+        bool deferredCompletion,
+        string modId,
+        string? displayName = null,
+        string? version = null)
+    {
+        return Register(deferredCompletion, modId, displayName, version, typeof(T).Assembly);
     }
 
     public static bool IsRegistered(Assembly? assembly = null)
@@ -207,9 +254,34 @@ public static class ModRegistry
         return assembly.GetName().Name ?? VersionInfo.GetName(assembly);
     }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string? ReadMetadataString(object? metadata, params string[] memberNames)
+    {
+        if (metadata == null)
+        {
+            return null;
+        }
+
+        Type metadataType = metadata.GetType();
+        foreach (string memberName in memberNames)
+        {
+            try
+            {
+                object? value = MemberAccessor.Get(metadataType, memberName).GetValue(metadata);
+                if (value != null && !string.IsNullOrWhiteSpace(value.ToString()))
+                {
+                    return value.ToString()!.Trim();
+                }
+            }
+            catch (MissingMemberException)
+            {
+            }
+        }
+
+        return null;
+    }
+
     private static Assembly ResolveAssembly(Assembly? assembly)
     {
-        return assembly ?? Assembly.GetCallingAssembly();
+        return AssemblyResolver.Resolve(assembly, typeof(ModRegistry));
     }
 }

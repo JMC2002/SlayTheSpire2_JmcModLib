@@ -101,9 +101,9 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             BbcodeEnabled = true,
             FitContent = true,
             ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = BuildSubtitle()
         };
-        subtitle.Text = BuildSubtitle();
         root.AddChild(subtitle);
 
         root.AddChild(new HSeparator());
@@ -136,9 +136,9 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             BbcodeEnabled = true,
             FitContent = true,
             ScrollActive = false,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = "[color=#aab7bc]Changes are saved immediately.[/color]"
         };
-        hint.Text = "[color=#aab7bc]Changes are saved immediately.[/color]";
         footer.AddChild(hint);
 
         var resetButton = new Button
@@ -192,7 +192,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             return;
         }
 
-        List<string> groups = ConfigManager.GetGroups(assembly).ToList();
+        List<string> groups = [.. ConfigManager.GetGroups(assembly)];
         bool hideDefaultGroupHeader = groups.Count == 1 && groups[0] == ConfigAttribute.DefaultGroup;
 
         foreach (string group in groups)
@@ -209,7 +209,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         }
     }
 
-    private Control BuildNotice(string text)
+    private static RichTextLabel BuildNotice(string text)
     {
         return new RichTextLabel
         {
@@ -221,7 +221,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         };
     }
 
-    private Control BuildGroupHeader(string group)
+    private static VBoxContainer BuildGroupHeader(string group)
     {
         var wrapper = new VBoxContainer
         {
@@ -241,7 +241,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         return wrapper;
     }
 
-    private Control BuildEntryRow(ConfigEntry entry)
+    private VBoxContainer BuildEntryRow(ConfigEntry entry)
     {
         var wrapper = new VBoxContainer
         {
@@ -349,7 +349,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         };
     }
 
-    private Control BuildBooleanEditor(ConfigEntry entry)
+    private CheckBox BuildBooleanEditor(ConfigEntry entry)
     {
         var checkbox = new CheckBox
         {
@@ -377,7 +377,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         return checkbox;
     }
 
-    private Control BuildStringEditor(ConfigEntry entry)
+    private LineEdit BuildStringEditor(ConfigEntry entry)
     {
         var lineEdit = new LineEdit
         {
@@ -408,7 +408,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         return lineEdit;
     }
 
-    private Control BuildDropdownEditor(ConfigEntry entry, UIDropdownAttribute? dropdownAttribute, Type valueType)
+    private OptionButton BuildDropdownEditor(ConfigEntry entry, UIDropdownAttribute? dropdownAttribute, Type valueType)
     {
         var dropdown = new OptionButton
         {
@@ -416,9 +416,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         };
 
         IReadOnlyList<string> options = valueType.IsEnum
-            ? Enum.GetNames(valueType)
-                .Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)
-                .ToArray()
+            ? [.. Enum.GetNames(valueType).Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)]
             : dropdownAttribute?.Options.Count > 0
                 ? dropdownAttribute.Options
                 : [entry.GetValue()?.ToString() ?? string.Empty];
@@ -458,7 +456,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         return dropdown;
     }
 
-    private Control BuildSpinBoxEditor(ConfigEntry entry, Type valueType)
+    private SpinBox BuildSpinBoxEditor(ConfigEntry entry, Type valueType)
     {
         var spinBox = new SpinBox
         {
@@ -491,7 +489,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         return spinBox;
     }
 
-    private Control BuildSliderEditor(ConfigEntry entry, ISliderConfigAttribute sliderAttribute, Type valueType)
+    private HBoxContainer BuildSliderEditor(ConfigEntry entry, ISliderConfigAttribute sliderAttribute, Type valueType)
     {
         var wrapper = new HBoxContainer
         {

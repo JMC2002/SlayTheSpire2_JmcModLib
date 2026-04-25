@@ -180,8 +180,8 @@ namespace JmcModLib.Reflection
 
             bool isVoid = method.ReturnType == typeof(void);
             Type delegateType = isVoid
-                ? GetActionType(paramExprs.Select(e => e.Type).ToArray())
-                : GetFuncType(paramExprs.Select(e => e.Type).Concat(new[] { method.ReturnType }).ToArray());
+                ? GetActionType([.. paramExprs.Select(e => e.Type)])
+                : GetFuncType([.. paramExprs.Select(e => e.Type), method.ReturnType]);
 
             var lambda = System.Linq.Expressions.Expression.Lambda(delegateType, call, paramExprs);
             return lambda.Compile();
@@ -768,7 +768,7 @@ namespace JmcModLib.Reflection
         // ==============================
         private static Func<object?, object?> CreateFastInvoker0(MethodInfo method)
         {
-            var dm = new DynamicMethod($"fast_invoke0_{method.DeclaringType!.Name}_{method.Name}", typeof(object), new[] { typeof(object) }, method.Module, true);
+            var dm = new DynamicMethod($"fast_invoke0_{method.DeclaringType!.Name}_{method.Name}", typeof(object), [typeof(object)], method.Module, true);
             var il = dm.GetILGenerator();
 
             if (!method.IsStatic)
@@ -801,7 +801,7 @@ namespace JmcModLib.Reflection
 
         private static Func<object?, object?, object?> CreateFastInvoker1(MethodInfo method, ParameterInfo p0)
         {
-            var dm = new DynamicMethod($"fast_invoke1_{method.DeclaringType!.Name}_{method.Name}", typeof(object), new[] { typeof(object), typeof(object) }, method.Module, true);
+            var dm = new DynamicMethod($"fast_invoke1_{method.DeclaringType!.Name}_{method.Name}", typeof(object), [typeof(object), typeof(object)], method.Module, true);
             var il = dm.GetILGenerator();
 
             if (!method.IsStatic)
@@ -825,7 +825,7 @@ namespace JmcModLib.Reflection
 
         private static Func<object?, object?, object?, object?> CreateFastInvoker2(MethodInfo method, ParameterInfo p0, ParameterInfo p1)
         {
-            var dm = new DynamicMethod($"fast_invoke2_{method.DeclaringType!.Name}_{method.Name}", typeof(object), new[] { typeof(object), typeof(object), typeof(object) }, method.Module, true);
+            var dm = new DynamicMethod($"fast_invoke2_{method.DeclaringType!.Name}_{method.Name}", typeof(object), [typeof(object), typeof(object), typeof(object)], method.Module, true);
             var il = dm.GetILGenerator();
             if (!method.IsStatic)
             {
@@ -845,7 +845,7 @@ namespace JmcModLib.Reflection
 
         private static Func<object?, object?, object?, object?, object?> CreateFastInvoker3(MethodInfo method, ParameterInfo p0, ParameterInfo p1, ParameterInfo p2)
         {
-            var dm = new DynamicMethod($"fast_invoke3_{method.DeclaringType!.Name}_{method.Name}", typeof(object), new[] { typeof(object), typeof(object), typeof(object), typeof(object) }, method.Module, true);
+            var dm = new DynamicMethod($"fast_invoke3_{method.DeclaringType!.Name}_{method.Name}", typeof(object), [typeof(object), typeof(object), typeof(object), typeof(object)], method.Module, true);
             var il = dm.GetILGenerator();
             if (!method.IsStatic)
             {

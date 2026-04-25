@@ -9,37 +9,27 @@ namespace JmcModLib.Config.Entry;
 /// <summary>
 /// Base class for a single registered config entry.
 /// </summary>
-public abstract class ConfigEntry
+public abstract class ConfigEntry(
+    Assembly assembly,
+    string storageKey,
+    string group,
+    string displayName,
+    ConfigAttribute attribute,
+    UIConfigAttribute? uiAttribute)
 {
-    protected ConfigEntry(
-        Assembly assembly,
-        string storageKey,
-        string group,
-        string displayName,
-        ConfigAttribute attribute,
-        UIConfigAttribute? uiAttribute)
-    {
-        Assembly = assembly;
-        StorageKey = storageKey;
-        Group = group;
-        DisplayName = displayName;
-        Attribute = attribute;
-        UIAttribute = uiAttribute;
-    }
+    public Assembly Assembly { get; } = assembly;
 
-    public Assembly Assembly { get; }
+    public string StorageKey { get; } = storageKey;
 
-    public string StorageKey { get; }
+    public string Group { get; } = group;
 
-    public string Group { get; }
-
-    public string DisplayName { get; }
+    public string DisplayName { get; } = displayName;
 
     public string Key => CreateKey(StorageKey, Group);
 
-    public ConfigAttribute Attribute { get; }
+    public ConfigAttribute Attribute { get; } = attribute;
 
-    public UIConfigAttribute? UIAttribute { get; }
+    public UIConfigAttribute? UIAttribute { get; } = uiAttribute;
 
     public abstract Type ValueType { get; }
 
@@ -76,36 +66,26 @@ public abstract class ConfigEntry
     }
 }
 
-public sealed class ConfigEntry<TValue> : ConfigEntry
+public sealed class ConfigEntry<TValue>(
+    Assembly assembly,
+    string storageKey,
+    string group,
+    string displayName,
+    TValue defaultValue,
+    Func<TValue> getter,
+    Action<TValue> setter,
+    Action<TValue>? onChanged,
+    ConfigAttribute attribute,
+    UIConfigAttribute? uiAttribute) : ConfigEntry(assembly, storageKey, group, displayName, attribute, uiAttribute)
 {
-    private readonly Func<TValue> getter;
-    private readonly Action<TValue> setter;
-    private readonly Action<TValue>? onChanged;
-    private TValue currentValue;
+    private readonly Func<TValue> getter = getter ?? throw new ArgumentNullException(nameof(getter));
+    private readonly Action<TValue> setter = setter ?? throw new ArgumentNullException(nameof(setter));
+    private readonly Action<TValue>? onChanged = onChanged;
+    private TValue currentValue = defaultValue;
     private bool isGetting;
     private bool isSetting;
 
-    public ConfigEntry(
-        Assembly assembly,
-        string storageKey,
-        string group,
-        string displayName,
-        TValue defaultValue,
-        Func<TValue> getter,
-        Action<TValue> setter,
-        Action<TValue>? onChanged,
-        ConfigAttribute attribute,
-        UIConfigAttribute? uiAttribute)
-        : base(assembly, storageKey, group, displayName, attribute, uiAttribute)
-    {
-        this.getter = getter ?? throw new ArgumentNullException(nameof(getter));
-        this.setter = setter ?? throw new ArgumentNullException(nameof(setter));
-        this.onChanged = onChanged;
-        currentValue = defaultValue;
-        DefaultValueTyped = defaultValue;
-    }
-
-    public TValue DefaultValueTyped { get; }
+    public TValue DefaultValueTyped { get; } = defaultValue;
 
     public override Type ValueType => typeof(TValue);
 

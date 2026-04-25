@@ -13,7 +13,7 @@ public sealed class JsonConfigStorage : IConfigStorage
 {
     private sealed class ConfigDocument
     {
-        public Dictionary<string, Dictionary<string, JsonElement>> groups { get; set; } = new(StringComparer.Ordinal);
+        public Dictionary<string, Dictionary<string, JsonElement>> Groups { get; set; } = new(StringComparer.Ordinal);
     }
 
     private static readonly JsonSerializerOptions SerializerOptions = CreateSerializerOptions();
@@ -54,10 +54,10 @@ public sealed class JsonConfigStorage : IConfigStorage
         assembly = ResolveAssembly(assembly);
         ConfigDocument document = GetOrLoadDocument(assembly);
 
-        if (!document.groups.TryGetValue(group, out Dictionary<string, JsonElement>? groupValues))
+        if (!document.Groups.TryGetValue(group, out Dictionary<string, JsonElement>? groupValues))
         {
             groupValues = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            document.groups[group] = groupValues;
+            document.Groups[group] = groupValues;
         }
 
         groupValues[key] = SerializeValue(value);
@@ -71,7 +71,7 @@ public sealed class JsonConfigStorage : IConfigStorage
         assembly = ResolveAssembly(assembly);
         ConfigDocument document = GetOrLoadDocument(assembly);
 
-        if (!document.groups.TryGetValue(group, out Dictionary<string, JsonElement>? groupValues)
+        if (!document.Groups.TryGetValue(group, out Dictionary<string, JsonElement>? groupValues)
             || !groupValues.TryGetValue(key, out JsonElement rawValue))
         {
             value = null;
@@ -197,6 +197,6 @@ public sealed class JsonConfigStorage : IConfigStorage
 
     private static Assembly ResolveAssembly(Assembly? assembly)
     {
-        return assembly ?? Assembly.GetCallingAssembly();
+        return AssemblyResolver.Resolve(assembly, typeof(JsonConfigStorage));
     }
 }

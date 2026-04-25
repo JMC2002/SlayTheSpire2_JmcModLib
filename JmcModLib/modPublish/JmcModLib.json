@@ -2,7 +2,7 @@
   "id": "JmcModLib",
   "name": "JmcModLib",
   "author": "JMC",
-  "version": "1.0.27",
+  "version": "1.0.31",
   "description": "JmcModLib for Slay the Spire 2.",
   "has_pck": true,
   "has_dll": true,

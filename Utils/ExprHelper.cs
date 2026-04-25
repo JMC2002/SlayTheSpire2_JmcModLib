@@ -28,12 +28,12 @@ public static class ExprHelper
 
     private static bool GetEnableCache(Assembly? asm = null)
     {
-        return _configs.GetOrAdd(asm ?? Assembly.GetCallingAssembly(), _ => new AssemblyConfig()).EnableCache;
+        return _configs.GetOrAdd(ResolveAssembly(asm), _ => new AssemblyConfig()).EnableCache;
     }
 
     private static void SetEnableCache(bool value, Assembly? asm = null)
     {
-        asm ??= Assembly.GetCallingAssembly();
+        asm = ResolveAssembly(asm);
         var cfg = _configs.GetOrAdd(asm, _ => new AssemblyConfig());
 
         if (cfg.EnableCache != value)
@@ -49,18 +49,18 @@ public static class ExprHelper
     /// </summary>
     public static bool EnableCache
     {
-        get => GetEnableCache(Assembly.GetCallingAssembly());
-        set => SetEnableCache(value, Assembly.GetCallingAssembly());
+        get => GetEnableCache();
+        set => SetEnableCache(value);
     }
 
     private static MemberAccessMode GetAccessMode(Assembly? asm = null)
     {
-        return _configs.GetOrAdd(asm ?? Assembly.GetCallingAssembly(), _ => new AssemblyConfig()).Mode;
+        return _configs.GetOrAdd(ResolveAssembly(asm), _ => new AssemblyConfig()).Mode;
     }
 
     private static void SetAccessMode(MemberAccessMode mode, Assembly? asm = null)
     {
-        asm ??= Assembly.GetCallingAssembly();
+        asm = ResolveAssembly(asm);
         var cfg = _configs.GetOrAdd(asm, _ => new AssemblyConfig());
 
         if (cfg.Mode != mode)
@@ -83,8 +83,8 @@ public static class ExprHelper
     /// </summary>
     public static MemberAccessMode AccessMode
     {
-        get => GetAccessMode(Assembly.GetCallingAssembly());
-        set => SetAccessMode(value, Assembly.GetCallingAssembly());
+        get => GetAccessMode();
+        set => SetAccessMode(value);
     }
 
     /// <summary>
@@ -156,7 +156,7 @@ public static class ExprHelper
     /// <exception cref="InvalidOperationException">实例对象为空、模式选择不正确</exception>
     public static (Func<T> getter, Action<T> setter) GetOrCreateAccessors<T>
         (Expression<Func<T>> expr, Assembly? assembly = null)
-        => GetOrCreateAccessors(expr, out _, assembly ?? Assembly.GetCallingAssembly());
+        => GetOrCreateAccessors(expr, out _, ResolveAssembly(assembly));
 
     /// <summary>
     /// 从一个变量自动构造getter函数与setter函数，并检查是否命中缓存，调用形式形如：
@@ -183,7 +183,7 @@ public static class ExprHelper
 
         var member = memberExpr.Member;
         var targetExpr = memberExpr.Expression;
-        var asm = assembly ?? Assembly.GetCallingAssembly();
+        var asm = ResolveAssembly(assembly);
         // object target = StaticKey;
 
         bool isStatic = member switch
@@ -442,7 +442,7 @@ public static class ExprHelper
     /// </summary>
     public static void ClearAssemblyCache(Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         _insCache.TryRemove(assembly, out _);
         _staCache.TryRemove(assembly, out _);
         ModLogger.Info($"[{assembly.GetName().Name}] 缓存已清空");
@@ -456,5 +456,10 @@ public static class ExprHelper
         _insCache.Clear();
         _staCache.Clear();
         ModLogger.Info($"已清空所有缓存");
+    }
+
+    private static Assembly ResolveAssembly(Assembly? assembly)
+    {
+        return AssemblyResolver.Resolve(assembly, typeof(ExprHelper));
     }
 }

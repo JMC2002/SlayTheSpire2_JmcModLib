@@ -33,7 +33,7 @@ public sealed class RegistryBuilder
         bool throwOnFatal = true,
         LogType logType = LogType.Generic,
         bool includeExceptionDetails = true,
-        LogConfigUIFlags uiFlags = LogConfigUIFlags.None)
+        LogConfigUIFlags uIFlags = LogConfigUIFlags.None)
     {
         ModLogger.RegisterAssembly(
             assembly,
@@ -42,7 +42,7 @@ public sealed class RegistryBuilder
             throwOnFatal,
             logType,
             includeExceptionDetails,
-            uiFlags);
+            uIFlags);
         ModRegistry.MarkLoggerConfigured(assembly);
         return this;
     }

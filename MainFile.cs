@@ -11,8 +11,8 @@ public partial class MainFile : Node
 {
     public static void Initialize()
     {
-        ModBootstrap.Init<MainFile>(VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)
-            .RegisterLogger()
+        ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
+            .RegisterLogger(uIFlags: LogConfigUIFlags.All)
             .UseConfig()
             .Done();
 

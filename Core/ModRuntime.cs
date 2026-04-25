@@ -1,17 +1,15 @@
 using System.Collections;
 using System.Reflection;
+using JmcModLib.Reflection;
 using MegaCrit.Sts2.Core.Modding;
 
 namespace JmcModLib.Core;
 
 public static class ModRuntime
 {
-    private const BindingFlags StaticFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-    private const BindingFlags InstanceFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-
     public static Mod? TryGetLoadedMod(Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         return GetKnownMods().FirstOrDefault(mod => ReferenceEquals(GetAssembly(mod), assembly));
     }
 
@@ -27,7 +25,7 @@ public static class ModRuntime
 
     public static string GetPckName(Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         return GetPckName(TryGetLoadedMod(assembly))
             ?? assembly.GetName().Name
             ?? VersionInfo.Name;
@@ -35,7 +33,7 @@ public static class ModRuntime
 
     public static string GetDisplayName(Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         return GetManifestName(TryGetManifest(assembly))
             ?? assembly.GetName().Name
             ?? VersionInfo.Name;
@@ -43,7 +41,7 @@ public static class ModRuntime
 
     public static Version? GetLoadedVersion(Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         string? rawVersion = GetManifestVersion(TryGetManifest(assembly));
         if (Version.TryParse(rawVersion, out Version? parsed))
         {
@@ -132,16 +130,10 @@ public static class ModRuntime
     {
         foreach (string memberName in memberNames)
         {
-            PropertyInfo? property = type.GetProperty(memberName, StaticFlags);
-            if (property != null)
+            MemberAccessor? accessor = TryGetMember(type, memberName);
+            if (accessor is { IsStatic: true })
             {
-                return property.GetValue(null);
-            }
-
-            FieldInfo? field = type.GetField(memberName, StaticFlags);
-            if (field != null)
-            {
-                return field.GetValue(null);
+                return accessor.GetValue(null);
             }
         }
 
@@ -158,19 +150,34 @@ public static class ModRuntime
         Type type = instance.GetType();
         foreach (string memberName in memberNames)
         {
-            PropertyInfo? property = type.GetProperty(memberName, InstanceFlags);
-            if (property != null)
+            MemberAccessor? accessor = TryGetMember(type, memberName);
+            if (accessor is { IsStatic: false })
             {
-                return property.GetValue(instance);
-            }
-
-            FieldInfo? field = type.GetField(memberName, InstanceFlags);
-            if (field != null)
-            {
-                return field.GetValue(instance);
+                return accessor.GetValue(instance);
             }
         }
 
         return null;
+    }
+
+    private static MemberAccessor? TryGetMember(Type type, string memberName)
+    {
+        for (Type? current = type; current != null; current = current.BaseType)
+        {
+            try
+            {
+                return MemberAccessor.Get(current, memberName);
+            }
+            catch (MissingMemberException)
+            {
+            }
+        }
+
+        return null;
+    }
+
+    private static Assembly ResolveAssembly(Assembly? assembly)
+    {
+        return AssemblyResolver.Resolve(assembly, typeof(ModRuntime));
     }
 }

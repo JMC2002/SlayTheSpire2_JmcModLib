@@ -7,8 +7,8 @@ namespace JmcModLib.Utils;
 /// <summary>
 /// STS2 localization helpers.
 ///
-/// Unlike Duckov, STS2 loads mod tables automatically from:
-/// res://{mod_pck_name}/localization/{language}/{file}.csv
+/// Unlike Duckov, STS2 discovers mod localization tables from the PCK automatically.
+/// This helper only builds resource paths and LocString wrappers; no startup registration is required.
 /// </summary>
 public static class L10n
 {
@@ -18,24 +18,24 @@ public static class L10n
 
     public static string GetModLocalizationRoot(Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         return $"res://{ModRuntime.GetPckName(assembly)}/localization";
     }
 
     public static string GetModLocalizationDirectory(string? language = null, Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         return $"{GetModLocalizationRoot(assembly)}/{NormalizeLanguage(language)}";
     }
 
     public static string GetModTablePath(string fileName, string? language = null, Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
-        string normalizedFileName = fileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+        string normalizedFileName = fileName.Contains('.')
             ? fileName
-            : $"{fileName}.csv";
+            : $"{fileName}.json";
 
         return $"{GetModLocalizationDirectory(language, assembly)}/{normalizedFileName}";
     }
@@ -47,7 +47,7 @@ public static class L10n
 
     public static IEnumerable<string> EnumerateExistingModTablePaths(string fileName, Assembly? assembly = null)
     {
-        assembly ??= Assembly.GetCallingAssembly();
+        assembly = ResolveAssembly(assembly);
 
         string primaryPath = GetModTablePath(fileName, CurrentLanguage, assembly);
         if (ResourceLoader.Exists(primaryPath))
@@ -115,5 +115,10 @@ public static class L10n
         return string.IsNullOrWhiteSpace(language)
             ? CurrentLanguage
             : language.Trim().ToLowerInvariant();
+    }
+
+    private static Assembly ResolveAssembly(Assembly? assembly)
+    {
+        return AssemblyResolver.Resolve(assembly, typeof(L10n));
     }
 }
