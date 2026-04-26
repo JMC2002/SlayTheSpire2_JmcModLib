@@ -52,6 +52,10 @@ internal static class ModSettingsText
 
     public static string Close() => Resolve("CLOSE", "Close");
 
+    public static string KeybindListening() => Resolve("KEYBIND_LISTENING", "Press a key or button...");
+
+    public static string KeybindUnbound() => Resolve("KEYBIND_UNBOUND", "Unbound");
+
     public static string ConfigTitle(string modName)
     {
         return Resolve(

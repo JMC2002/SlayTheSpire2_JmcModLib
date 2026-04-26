@@ -1,4 +1,5 @@
 using System.Reflection;
+using Godot;
 using JmcModLib.Config;
 using MegaCrit.Sts2.Core.Logging;
 
@@ -100,6 +101,46 @@ public abstract class UIConfigAttribute<TValue> : UIConfigAttribute
 
 public sealed class UIToggleAttribute : UIConfigAttribute<bool>
 {
+}
+
+public sealed class UIKeybindAttribute(bool allowController = false, bool allowKeyboard = true) : UIConfigAttribute
+{
+    public bool AllowKeyboard { get; } = allowKeyboard;
+
+    public bool AllowController { get; } = allowController;
+
+    public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
+    {
+        Type actualType = Nullable.GetUnderlyingType(valueType) ?? valueType;
+
+        if (!AllowKeyboard && !AllowController)
+        {
+            errorMessage = $"{GetType().Name} must allow keyboard, controller, or both.";
+            return false;
+        }
+
+        if (actualType == typeof(Key))
+        {
+            if (AllowController)
+            {
+                errorMessage = $"{GetType().Name} with controller support requires {typeof(JmcKeyBinding).FullName}.";
+                return false;
+            }
+
+            errorMessage = null;
+            return true;
+        }
+
+        if (actualType == typeof(JmcKeyBinding))
+        {
+            errorMessage = null;
+            return true;
+        }
+
+        errorMessage =
+            $"{GetType().Name} only supports {typeof(Key).FullName} or {typeof(JmcKeyBinding).FullName}, but received {valueType.FullName}.";
+        return false;
+    }
 }
 
 public sealed class UIInputAttribute(int characterLimit = 0, bool multiline = false) : UIConfigAttribute<string>

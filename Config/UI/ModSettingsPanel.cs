@@ -26,6 +26,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     private MegaRichTextLabel? titleLabel;
     private MegaRichTextLabel? descriptionLabel;
     private SettingsUiTemplates? nativeTemplates;
+    private JmcKeybindButton? listeningKeybind;
     private bool suppressControlEvents;
 
     public static ModSettingsPanel Create()
@@ -39,6 +40,9 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     public override void _Ready()
     {
+        SetProcessInput(true);
+        SetProcessUnhandledKeyInput(true);
+        JmcKeybindInputRelay.Ensure(this);
         nativeTemplates = SettingsUiTemplates.Resolve(this);
         BuildLayout();
         Connect(CanvasItem.SignalName.VisibilityChanged, Callable.From(OnVisibilityChange));
@@ -62,10 +66,43 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         base._ExitTree();
     }
 
+    public override void _UnhandledKeyInput(InputEvent @event)
+    {
+        if (listeningKeybind?.TryHandleKey(@event) == true)
+        {
+            listeningKeybind = null;
+            GetViewport()?.SetInputAsHandled();
+            return;
+        }
+
+        base._UnhandledKeyInput(@event);
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        if (listeningKeybind?.TryHandleKey(@event) == true)
+        {
+            listeningKeybind = null;
+            GetViewport()?.SetInputAsHandled();
+            return;
+        }
+
+        if (listeningKeybind?.TryHandleController(@event) == true)
+        {
+            listeningKeybind = null;
+            GetViewport()?.SetInputAsHandled();
+            return;
+        }
+
+        base._Input(@event);
+    }
+
     protected override void OnVisibilityChange()
     {
         if (!Visible)
         {
+            listeningKeybind?.CancelListening();
+            listeningKeybind = null;
             return;
         }
 
@@ -153,6 +190,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         }
 
         bindings.Clear();
+        listeningKeybind = null;
         _firstControl = null;
 
         List<Mod> modsWithConfig = [.. ModManager.Mods
@@ -278,6 +316,11 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private VBoxContainer BuildEntryRow(ConfigEntry entry, List<Control> focusableControls)
     {
+        if (entry.UIAttribute is UIKeybindAttribute keybindAttribute)
+        {
+            return BuildKeybindEntryRow(entry, keybindAttribute, focusableControls);
+        }
+
         var wrapper = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill
@@ -318,6 +361,34 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         return wrapper;
     }
 
+    private VBoxContainer BuildKeybindEntryRow(
+        ConfigEntry entry,
+        UIKeybindAttribute keybindAttribute,
+        List<Control> focusableControls)
+    {
+        var wrapper = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
+        wrapper.AddThemeConstantOverride("separation", 6);
+
+        wrapper.AddChild(BuildKeybindEditor(entry, keybindAttribute, focusableControls));
+
+        string description = ConfigLocalization.GetDescription(entry);
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            wrapper.AddChild(CreateStyledText($"[color=#aab7bc]{description}[/color]"));
+        }
+
+        if (entry.Attribute.RestartRequired)
+        {
+            wrapper.AddChild(CreateStyledText($"[color=#e0b24f]{ModSettingsText.RestartRequired()}[/color]"));
+        }
+
+        wrapper.AddChild(new HSeparator());
+        return wrapper;
+    }
+
     private Control BuildEditor(ConfigEntry entry, List<Control> focusableControls)
     {
         if (entry is ButtonEntry buttonEntry)
@@ -327,6 +398,11 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         Type valueType = Nullable.GetUnderlyingType(entry.ValueType) ?? entry.ValueType;
         UIConfigAttribute? uiAttribute = entry.UIAttribute;
+
+        if (uiAttribute is UIKeybindAttribute keybindAttribute)
+        {
+            return BuildKeybindEditor(entry, keybindAttribute, focusableControls);
+        }
 
         if (valueType == typeof(bool))
         {
@@ -361,6 +437,67 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Control unsupported = CreateStyledText($"[color=#d07f7f]{ModSettingsText.UnsupportedType(valueType.Name)}[/color]");
         unsupported.CustomMinimumSize = new Vector2(240f, 0f);
         return unsupported;
+    }
+
+    private Control BuildKeybindEditor(
+        ConfigEntry entry,
+        UIKeybindAttribute keybindAttribute,
+        List<Control> focusableControls)
+    {
+        JmcKeyBinding binding = JmcKeyBindingValue.FromValue(entry.GetValue());
+        string label = ConfigLocalization.GetDisplayName(entry);
+
+        if (nativeTemplates?.KeybindTemplate != null)
+        {
+            JmcKeybindButton keybind = JmcKeybindButton.Create(
+                nativeTemplates.KeybindTemplate,
+                label,
+                binding,
+                keybindAttribute,
+                button =>
+                {
+                    if (listeningKeybind != button)
+                    {
+                        listeningKeybind?.CancelListening();
+                    }
+
+                    listeningKeybind = button;
+                },
+                newBinding =>
+                {
+                    if (suppressControlEvents)
+                    {
+                        return;
+                    }
+
+                    TrySetEntryValue(entry, JmcKeyBindingValue.ToEntryValue(newBinding, entry.ValueType));
+                });
+
+            bindings[CreateBindingKey(entry)] = rawValue =>
+            {
+                suppressControlEvents = true;
+                keybind.SetValue(JmcKeyBindingValue.FromValue(rawValue));
+                suppressControlEvents = false;
+            };
+
+            keybind.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            keybind.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            focusableControls.Add(keybind);
+            return keybind;
+        }
+
+        var fallbackButton = new Button
+        {
+            Text = $"{label}: {FormatKeybind(binding, keybindAttribute)}",
+            FocusMode = FocusModeEnum.All,
+            CustomMinimumSize = new Vector2(420f, ActionButtonHeight)
+        };
+        fallbackButton.Pressed += () => ModLogger.Warn(
+            $"Keybind config {entry.Key} is using fallback display because the native input settings template was not found.",
+            entry.Assembly);
+
+        focusableControls.Add(fallbackButton);
+        return fallbackButton;
     }
 
     private Control BuildBooleanEditor(ConfigEntry entry, List<Control> focusableControls)
@@ -1038,6 +1175,22 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         }
 
         return Math.Round(value).ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatKeybind(JmcKeyBinding binding, UIKeybindAttribute attribute)
+    {
+        string keyboard = attribute.AllowKeyboard
+            ? binding.HasKeyboard ? binding.Keyboard.ToString() : ModSettingsText.KeybindUnbound()
+            : string.Empty;
+        string controller = attribute.AllowController && binding.HasController ? binding.Controller : string.Empty;
+
+        return (keyboard, controller) switch
+        {
+            ({ Length: > 0 }, { Length: > 0 }) => $"{keyboard} / {controller}",
+            ({ Length: > 0 }, _) => keyboard,
+            (_, { Length: > 0 }) => controller,
+            _ => ModSettingsText.KeybindUnbound()
+        };
     }
 
     private static bool ToBoolean(object? value)

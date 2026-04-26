@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
+using Godot;
 using JmcModLib.Config.Storage;
 using JmcModLib.Config.UI;
 
@@ -257,6 +258,24 @@ internal static class ConfigValueConverter
         if (nullableType != null)
         {
             return Convert(value, nullableType);
+        }
+
+        if (value is JmcKeyBinding keyBinding)
+        {
+            if (targetType == typeof(Key))
+            {
+                return keyBinding.Keyboard;
+            }
+
+            if (targetType == typeof(string))
+            {
+                return keyBinding.Keyboard.ToString();
+            }
+        }
+
+        if (targetType == typeof(JmcKeyBinding) && value is Key keyboard)
+        {
+            return new JmcKeyBinding(keyboard);
         }
 
         if (value is System.Text.Json.JsonElement jsonElement)
