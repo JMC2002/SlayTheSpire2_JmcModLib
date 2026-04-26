@@ -269,7 +269,7 @@ internal static class ConfigValueConverter
 
             if (targetType == typeof(string))
             {
-                return keyBinding.Keyboard.ToString();
+                return keyBinding.ToString();
             }
         }
 

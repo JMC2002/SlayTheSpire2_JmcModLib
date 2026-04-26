@@ -1185,7 +1185,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     private static string FormatKeybind(JmcKeyBinding binding, UIKeybindAttribute attribute)
     {
         string keyboard = attribute.AllowKeyboard
-            ? binding.HasKeyboard ? binding.Keyboard.ToString() : ModSettingsText.KeybindUnbound()
+            ? binding.HasKeyboard ? binding.ToKeyboardText() : ModSettingsText.KeybindUnbound()
             : string.Empty;
         string controller = attribute.AllowController && binding.HasController ? binding.Controller : string.Empty;
 

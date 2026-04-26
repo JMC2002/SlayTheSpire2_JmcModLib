@@ -42,6 +42,8 @@ public static class ConfigManager
         AttributeRouting.Init();
         AttributeRouting.RegisterHandler<ConfigAttribute>(new ConfigAttributeHandler());
         AttributeRouting.RegisterHandler<UIButtonAttribute>(new UIButtonAttributeHandler());
+        AttributeRouting.RegisterHandler<JmcHotkeyAttribute>(new JmcHotkeyAttributeHandler());
+        AttributeRouting.RegisterHandler<UIHotkeyAttribute>(new UIHotkeyAttributeHandler());
         AttributeRouting.AssemblyScanned += OnAssemblyScanned;
         ModRegistry.OnUnregistered += OnModUnregistered;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -175,6 +177,10 @@ public static class ConfigManager
         string? locTable = null,
         string? displayNameKey = null,
         string? groupKey = null,
+        string? description = null,
+        string? descriptionKey = null,
+        int order = 0,
+        bool restartRequired = false,
         Assembly? assembly = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -193,9 +199,13 @@ public static class ConfigManager
         var descriptor = new ConfigAttribute(displayName, group: resolvedGroup)
         {
             Key = resolvedStorageKey,
+            Description = description,
             LocTable = locTable,
             DisplayNameKey = displayNameKey,
-            GroupKey = groupKey
+            DescriptionKey = descriptionKey,
+            GroupKey = groupKey,
+            Order = order,
+            RestartRequired = restartRequired
         };
 
         var entry = new ConfigEntry<TValue>(

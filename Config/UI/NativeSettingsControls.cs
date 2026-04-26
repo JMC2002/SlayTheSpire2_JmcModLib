@@ -432,7 +432,7 @@ internal sealed class JmcKeybindButton : NButton
     private const float RowWidth = 1040f;
     private const float RowHeight = 58f;
     private const float InputLabelWidth = 600f;
-    private const float KeyLabelWidth = 210f;
+    private const float KeyLabelWidth = 280f;
     private const float ControllerIconWidth = 84f;
     private const int FontSize = 24;
 
@@ -448,6 +448,13 @@ internal sealed class JmcKeybindButton : NButton
     private TextureRect? controllerBindingIcon;
 
     private static JmcKeybindButton? ActiveListeningButton { get; set; }
+
+    internal static bool HasActiveListener => ActiveListeningButton is { isListening: true };
+
+    internal static bool HasRecentCapture => lastCaptureTicks != 0
+        && Time.GetTicksMsec() - lastCaptureTicks < 150;
+
+    private static ulong lastCaptureTicks;
 
     public static JmcKeybindButton Create(
         Control template,
@@ -555,18 +562,19 @@ internal sealed class JmcKeybindButton : NButton
             return false;
         }
 
-        if (inputEvent is not InputEventKey { Echo: false } keyEvent)
+        if (inputEvent is not InputEventKey { Pressed: true, Echo: false } keyEvent)
         {
             return false;
         }
 
-        Key keycode = keyEvent.Keycode != Key.None ? keyEvent.Keycode : keyEvent.PhysicalKeycode;
-        if (keycode == Key.None)
+        Key keycode = JmcKeyBinding.ReadKey(keyEvent);
+        if (keycode == Key.None || JmcKeyBinding.IsModifierKey(keycode))
         {
             return false;
         }
 
-        ApplyValue(value.WithKeyboard(keycode));
+        JmcKeyModifiers modifiers = JmcKeyBinding.ReadModifiers(keyEvent);
+        ApplyValue(value.WithKeyboard(keycode, modifiers));
         return true;
     }
 
@@ -634,6 +642,7 @@ internal sealed class JmcKeybindButton : NButton
     private void ApplyValue(JmcKeyBinding binding)
     {
         value = binding;
+        lastCaptureTicks = Time.GetTicksMsec();
         isListening = false;
         if (ActiveListeningButton == this)
         {
@@ -686,7 +695,7 @@ internal sealed class JmcKeybindButton : NButton
             return string.Empty;
         }
 
-        return value.HasKeyboard ? value.Keyboard.ToString() : ModSettingsText.KeybindUnbound();
+        return value.HasKeyboard ? value.ToKeyboardText() : ModSettingsText.KeybindUnbound();
     }
 
     private void NormalizeLayout()
