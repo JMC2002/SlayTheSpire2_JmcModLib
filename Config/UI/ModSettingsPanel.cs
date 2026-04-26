@@ -329,7 +329,8 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         var topRow = new HBoxContainer
         {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Pass
         };
         wrapper.AddChild(topRow);
 
@@ -342,20 +343,10 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         labelColumn.AddChild(CreateStyledText($"[b]{ConfigLocalization.GetDisplayName(entry)}[/b]"));
 
-        string description = ConfigLocalization.GetDescription(entry);
-        if (!string.IsNullOrWhiteSpace(description))
-        {
-            labelColumn.AddChild(CreateStyledText($"[color=#aab7bc]{description}[/color]"));
-        }
-
-        if (entry.Attribute.RestartRequired)
-        {
-            labelColumn.AddChild(CreateStyledText($"[color=#e0b24f]{ModSettingsText.RestartRequired()}[/color]"));
-        }
-
         Control editor = BuildEditor(entry, focusableControls);
         editor.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
         topRow.AddChild(editor);
+        AttachEntryHoverTip(topRow, entry);
 
         wrapper.AddChild(new HSeparator());
         return wrapper;
@@ -372,18 +363,9 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         };
         wrapper.AddThemeConstantOverride("separation", 6);
 
-        wrapper.AddChild(BuildKeybindEditor(entry, keybindAttribute, focusableControls));
-
-        string description = ConfigLocalization.GetDescription(entry);
-        if (!string.IsNullOrWhiteSpace(description))
-        {
-            wrapper.AddChild(CreateStyledText($"[color=#aab7bc]{description}[/color]"));
-        }
-
-        if (entry.Attribute.RestartRequired)
-        {
-            wrapper.AddChild(CreateStyledText($"[color=#e0b24f]{ModSettingsText.RestartRequired()}[/color]"));
-        }
+        Control editor = BuildKeybindEditor(entry, keybindAttribute, focusableControls);
+        wrapper.AddChild(editor);
+        AttachEntryHoverTip(editor, entry);
 
         wrapper.AddChild(new HSeparator());
         return wrapper;
@@ -989,6 +971,29 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         label.Text = text;
         label.Call("SetFontSize", IntroFontSize);
         return label;
+    }
+
+    private static void AttachEntryHoverTip(Control owner, ConfigEntry entry)
+    {
+        string description = BuildEntryHoverDescription(entry);
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            JmcSettingsHoverTips.Attach(owner, ConfigLocalization.GetDisplayName(entry), description);
+        }
+    }
+
+    private static string BuildEntryHoverDescription(ConfigEntry entry)
+    {
+        string description = ConfigLocalization.GetDescription(entry);
+        if (!entry.Attribute.RestartRequired)
+        {
+            return description;
+        }
+
+        string restartText = $"[color=#e0b24f]{ModSettingsText.RestartRequired()}[/color]";
+        return string.IsNullOrWhiteSpace(description)
+            ? restartText
+            : $"{description}\n{restartText}";
     }
 
     private void TrySetEntryValue(ConfigEntry entry, object? rawValue)
