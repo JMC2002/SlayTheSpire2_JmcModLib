@@ -16,9 +16,7 @@ public abstract class ConfigEntry(
     string group,
     string displayName,
     ConfigAttribute attribute,
-    UIConfigAttribute? uiAttribute,
-    Type? sourceDeclaringType = null,
-    string? sourceMemberName = null)
+    UIConfigAttribute? uiAttribute)
 {
     public Assembly Assembly { get; } = assembly;
 
@@ -34,9 +32,9 @@ public abstract class ConfigEntry(
 
     public UIConfigAttribute? UIAttribute { get; } = uiAttribute;
 
-    public Type? SourceDeclaringType { get; } = sourceDeclaringType;
+    public Type? SourceDeclaringType { get; internal set; }
 
-    public string? SourceMemberName { get; } = sourceMemberName;
+    public string? SourceMemberName { get; internal set; }
 
     public abstract Type ValueType { get; }
 
@@ -83,10 +81,7 @@ public sealed class ConfigEntry<TValue>(
     Action<TValue> setter,
     Action<TValue>? onChanged,
     ConfigAttribute attribute,
-    UIConfigAttribute? uiAttribute,
-    Type? sourceDeclaringType = null,
-    string? sourceMemberName = null)
-    : ConfigEntry(assembly, storageKey, group, displayName, attribute, uiAttribute, sourceDeclaringType, sourceMemberName)
+    UIConfigAttribute? uiAttribute) : ConfigEntry(assembly, storageKey, group, displayName, attribute, uiAttribute)
 {
     private readonly Func<TValue> getter = getter ?? throw new ArgumentNullException(nameof(getter));
     private readonly Action<TValue> setter = setter ?? throw new ArgumentNullException(nameof(setter));

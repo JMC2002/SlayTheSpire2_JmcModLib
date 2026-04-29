@@ -371,7 +371,7 @@ public static class ConfigManager
 
         ValidateUiAttribute(uiAttribute, typeof(TValue), defaultValue, storageKey);
 
-        return new ConfigEntry<TValue>(
+        var entry = new ConfigEntry<TValue>(
             assembly,
             storageKey,
             group,
@@ -381,9 +381,13 @@ public static class ConfigManager
             setter,
             onChanged,
             attribute,
-            uiAttribute,
-            member.DeclaringType,
-            member.Name);
+            uiAttribute)
+        {
+            SourceDeclaringType = member.DeclaringType,
+            SourceMemberName = member.Name
+        };
+
+        return entry;
     }
 
     private static Action<TValue>? BuildOnChangedCallback<TValue>(

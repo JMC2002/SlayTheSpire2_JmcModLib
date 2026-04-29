@@ -14,7 +14,6 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     private readonly Dictionary<string, Action<object?>> bindings = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, bool> CollapsedSections = new(StringComparer.OrdinalIgnoreCase);
 
-    private const float MinPadding = 50f;
     private const float ContentWidth = 1120f;
     private const int IntroFontSize = 24;
     private const float CollapseButtonWidth = 240f;
@@ -1102,9 +1101,9 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Vector2 parentSize = parent.Size;
         Vector2 minimumSize = centerRoot.GetMinimumSize();
         float width = Math.Min(parentSize.X, Math.Max(ContentWidth, minimumSize.X));
-        Size = minimumSize.Y + MinPadding >= parentSize.Y
-            ? new Vector2(width, minimumSize.Y + parentSize.Y * 0.4f)
-            : new Vector2(width, minimumSize.Y);
+        // The parent NScrollableContainer already adds its own top/bottom padding.
+        // Inflating the panel here makes the scrollbar travel beyond real content.
+        Size = new Vector2(width, MathF.Max(minimumSize.Y, 1f));
         Position = new Vector2(Mathf.Max((parentSize.X - Size.X) * 0.5f, 0f), Position.Y);
     }
 
