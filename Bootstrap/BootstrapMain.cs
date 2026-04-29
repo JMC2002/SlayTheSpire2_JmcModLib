@@ -11,7 +11,7 @@ namespace JmcModLib.Bootstrap;
 [ModInitializer(nameof(Initialize))]
 public static class BootstrapMain
 {
-    private const string DescriptorFileName = "JmcModLib.runtime.json";
+    private const string DescriptorFileName = "JmcModLib.runtime.config";
 
     public static void Initialize()
     {
