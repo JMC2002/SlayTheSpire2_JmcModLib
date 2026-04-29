@@ -19,6 +19,8 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     private const float CollapseButtonWidth = 240f;
     private const float GlobalButtonWidth = 260f;
     private const float ActionButtonHeight = 56f;
+    private const float KeybindEnableToggleWidth = 64f;
+    private const float KeybindButtonWithToggleWidth = 1000f;
 
     private CenterContainer? centerRoot;
     private VBoxContainer? root;
@@ -435,9 +437,11 @@ internal sealed class ModSettingsPanel : NSettingsPanel
     {
         JmcKeyBinding binding = JmcKeyBindingValue.FromValue(entry.GetValue());
         string label = ConfigLocalization.GetDisplayName(entry);
+        bool supportsEnableToggle = SupportsKeybindEnableToggle(entry.ValueType);
 
         if (nativeTemplates?.KeybindTemplate != null)
         {
+            JmcSettingsTickbox? enableTickbox = null;
             JmcKeybindButton keybind = JmcKeybindButton.Create(
                 nativeTemplates.KeybindTemplate,
                 label,
@@ -465,14 +469,51 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             bindings[CreateBindingKey(entry)] = rawValue =>
             {
                 suppressControlEvents = true;
-                keybind.SetValue(JmcKeyBindingValue.FromValue(rawValue));
+                JmcKeyBinding updatedBinding = JmcKeyBindingValue.FromValue(rawValue);
+                keybind.SetValue(updatedBinding);
+                enableTickbox?.SetValue(updatedBinding.Enabled);
                 suppressControlEvents = false;
             };
 
             keybind.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             keybind.SizeFlagsVertical = SizeFlags.ShrinkCenter;
             focusableControls.Add(keybind);
-            return keybind;
+
+            if (!supportsEnableToggle || nativeTemplates.TickboxTemplate == null)
+            {
+                return keybind;
+            }
+
+            enableTickbox = JmcSettingsTickbox.Create(
+                nativeTemplates.TickboxTemplate,
+                binding.Enabled,
+                enabled =>
+                {
+                    if (suppressControlEvents)
+                    {
+                        return;
+                    }
+
+                    JmcKeyBinding updatedBinding = JmcKeyBindingValue.FromValue(entry.GetValue()).WithEnabled(enabled);
+                    keybind.SetValue(updatedBinding);
+                    TrySetEntryValue(entry, updatedBinding);
+                });
+            enableTickbox.CustomMinimumSize = new Vector2(KeybindEnableToggleWidth, ActionButtonHeight);
+            enableTickbox.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
+            enableTickbox.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+            focusableControls.Add(enableTickbox);
+
+            keybind.CustomMinimumSize = new Vector2(KeybindButtonWithToggleWidth, keybind.CustomMinimumSize.Y);
+
+            var row = new HBoxContainer
+            {
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                SizeFlagsVertical = SizeFlags.ShrinkCenter
+            };
+            row.AddThemeConstantOverride("separation", 12);
+            row.AddChild(keybind);
+            row.AddChild(enableTickbox);
+            return row;
         }
 
         var fallbackButton = new Button
@@ -487,6 +528,12 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         focusableControls.Add(fallbackButton);
         return fallbackButton;
+    }
+
+    private static bool SupportsKeybindEnableToggle(Type valueType)
+    {
+        Type actualType = Nullable.GetUnderlyingType(valueType) ?? valueType;
+        return actualType == typeof(JmcKeyBinding);
     }
 
     private Control BuildBooleanEditor(ConfigEntry entry, List<Control> focusableControls)

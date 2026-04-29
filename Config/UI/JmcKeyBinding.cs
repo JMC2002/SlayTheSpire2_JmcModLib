@@ -15,21 +15,59 @@ public enum JmcKeyModifiers
 /// <summary>
 /// Stores a mod-owned key binding without injecting it into the game's built-in input command table.
 /// </summary>
-public readonly record struct JmcKeyBinding(
-    Key Keyboard = Key.None,
-    string Controller = "",
-    JmcKeyModifiers Modifiers = JmcKeyModifiers.None)
+public readonly record struct JmcKeyBinding
 {
+    private readonly bool disabled;
+
+    public Key Keyboard { get; init; }
+
+    public string Controller { get; init; }
+
+    public JmcKeyModifiers Modifiers { get; init; }
+
+    public bool Enabled
+    {
+        get => !disabled;
+        init => disabled = !value;
+    }
+
+    public JmcKeyBinding()
+        : this(Key.None)
+    {
+    }
+
+    public JmcKeyBinding(Key keyboard)
+        : this(keyboard, string.Empty, JmcKeyModifiers.None, true)
+    {
+    }
+
+    public JmcKeyBinding(
+        Key keyboard = Key.None,
+        string controller = "",
+        JmcKeyModifiers modifiers = JmcKeyModifiers.None,
+        bool enabled = true)
+    {
+        Keyboard = keyboard;
+        Controller = controller;
+        Modifiers = modifiers;
+        disabled = !enabled;
+    }
+
+    public JmcKeyBinding(Key keyboard, string controller, JmcKeyModifiers modifiers)
+        : this(keyboard, controller, modifiers, true)
+    {
+    }
+
+    public JmcKeyBinding(Key keyboard, JmcKeyModifiers modifiers, bool enabled = true)
+        : this(keyboard, string.Empty, modifiers, enabled)
+    {
+    }
+
     public bool HasKeyboard => Keyboard != Key.None;
 
     public bool HasModifiers => Modifiers != JmcKeyModifiers.None;
 
     public bool HasController => !string.IsNullOrWhiteSpace(Controller);
-
-    public JmcKeyBinding(Key keyboard, JmcKeyModifiers modifiers)
-        : this(keyboard, string.Empty, modifiers)
-    {
-    }
 
     public JmcKeyBinding WithKeyboard(Key keyboard)
     {
@@ -50,9 +88,19 @@ public readonly record struct JmcKeyBinding(
         return this with { Controller = controller?.Trim() ?? string.Empty };
     }
 
+    public JmcKeyBinding WithEnabled(bool enabled)
+    {
+        return this with { Enabled = enabled };
+    }
+
     public bool IsPressed(InputEvent inputEvent, bool allowEcho = false, bool exactModifiers = true)
     {
         ArgumentNullException.ThrowIfNull(inputEvent);
+
+        if (!Enabled)
+        {
+            return false;
+        }
 
         if (HasKeyboard
             && inputEvent is InputEventKey { Pressed: true } keyEvent
@@ -70,6 +118,11 @@ public readonly record struct JmcKeyBinding(
     {
         ArgumentNullException.ThrowIfNull(inputEvent);
 
+        if (!Enabled)
+        {
+            return false;
+        }
+
         if (HasKeyboard
             && inputEvent is InputEventKey { Pressed: false } keyEvent
             && ResolveKeycode(keyEvent) == Keyboard)
@@ -82,6 +135,11 @@ public readonly record struct JmcKeyBinding(
 
     public bool IsDown(bool exactModifiers = true)
     {
+        if (!Enabled)
+        {
+            return false;
+        }
+
         if (HasKeyboard
             && Input.IsKeyPressed(Keyboard)
             && AreCurrentModifiersMatched(exactModifiers))

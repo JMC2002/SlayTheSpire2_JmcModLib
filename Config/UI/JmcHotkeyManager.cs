@@ -352,6 +352,12 @@ internal sealed class JmcHotkeyRegistration(
     public bool TryConsumePress(InputEvent inputEvent)
     {
         JmcKeyBinding binding = bindingGetter();
+        if (!binding.Enabled)
+        {
+            activePressId = null;
+            return false;
+        }
+
         if (Options.AllowEcho)
         {
             return binding.IsPressed(inputEvent, true, Options.ExactModifiers)
