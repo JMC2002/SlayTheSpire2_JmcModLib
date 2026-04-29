@@ -80,6 +80,18 @@ public readonly record struct JmcKeyBinding(
         return HasController && inputEvent.IsActionReleased(new StringName(Controller));
     }
 
+    public bool IsDown(bool exactModifiers = true)
+    {
+        if (HasKeyboard
+            && Input.IsKeyPressed(Keyboard)
+            && AreCurrentModifiersMatched(exactModifiers))
+        {
+            return true;
+        }
+
+        return HasController && Input.IsActionPressed(new StringName(Controller));
+    }
+
     public static implicit operator JmcKeyBinding(Key keyboard)
     {
         return new JmcKeyBinding(keyboard);
@@ -148,6 +160,32 @@ public readonly record struct JmcKeyBinding(
         return modifiers;
     }
 
+    public static JmcKeyModifiers ReadCurrentModifiers()
+    {
+        JmcKeyModifiers modifiers = JmcKeyModifiers.None;
+        if (Input.IsKeyPressed(Key.Ctrl))
+        {
+            modifiers |= JmcKeyModifiers.Ctrl;
+        }
+
+        if (Input.IsKeyPressed(Key.Shift))
+        {
+            modifiers |= JmcKeyModifiers.Shift;
+        }
+
+        if (Input.IsKeyPressed(Key.Alt))
+        {
+            modifiers |= JmcKeyModifiers.Alt;
+        }
+
+        if (Input.IsKeyPressed(Key.Meta))
+        {
+            modifiers |= JmcKeyModifiers.Meta;
+        }
+
+        return modifiers;
+    }
+
     public static bool IsModifierKey(Key key)
     {
         return key is Key.Ctrl
@@ -180,6 +218,14 @@ public readonly record struct JmcKeyBinding(
     private bool AreModifiersMatched(InputEventKey keyEvent, bool exactModifiers)
     {
         JmcKeyModifiers pressedModifiers = ReadModifiers(keyEvent);
+        return exactModifiers
+            ? pressedModifiers == Modifiers
+            : (pressedModifiers & Modifiers) == Modifiers;
+    }
+
+    private bool AreCurrentModifiersMatched(bool exactModifiers)
+    {
+        JmcKeyModifiers pressedModifiers = ReadCurrentModifiers();
         return exactModifiers
             ? pressedModifiers == Modifiers
             : (pressedModifiers & Modifiers) == Modifiers;

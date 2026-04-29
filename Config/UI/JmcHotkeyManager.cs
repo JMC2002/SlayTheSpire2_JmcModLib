@@ -5,6 +5,8 @@ using JmcModLib.Core.AttributeRouter;
 using JmcModLib.Reflection;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Nodes.Debug;
+using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 
 namespace JmcModLib.Config.UI;
 
@@ -122,7 +124,7 @@ public static class JmcHotkeyManager
         }
 
         EnsureRelay();
-        ModLogger.Trace($"Registered hotkey {key}", assembly);
+        ModLogger.Info($"Registered hotkey {key}", assembly);
     }
 
     internal static bool HandleInput(InputEvent inputEvent, Viewport? viewport)
@@ -142,7 +144,7 @@ public static class JmcHotkeyManager
 
         if (JmcKeybindButton.HasActiveListener
             || JmcKeybindButton.HasRecentCapture
-            || ShouldIgnoreForFocusedTextInput(inputEvent, viewport))
+            || ShouldIgnoreInput(inputEvent, viewport))
         {
             return false;
         }
@@ -152,7 +154,7 @@ public static class JmcHotkeyManager
         {
             try
             {
-                if (!registration.IsPressed(inputEvent))
+                if (!registration.TryConsumePress(inputEvent))
                 {
                     continue;
                 }
@@ -249,15 +251,38 @@ public static class JmcHotkeyManager
             ?? NGame.Instance?.GetNodeOrNull<JmcHotkeyInputRelay>(RelayName);
     }
 
-    private static bool ShouldIgnoreForFocusedTextInput(InputEvent inputEvent, Viewport? viewport)
+    private static bool ShouldIgnoreInput(InputEvent inputEvent, Viewport? viewport)
     {
+        if (IsDevConsoleVisible())
+        {
+            return true;
+        }
+
         if (inputEvent is not InputEventKey)
         {
             return false;
         }
 
         Control? focusOwner = viewport?.GuiGetFocusOwner();
-        return focusOwner is LineEdit or TextEdit;
+        return focusOwner switch
+        {
+            LineEdit lineEdit => lineEdit.IsEditing(),
+            NMegaTextEdit megaTextEdit => megaTextEdit.IsEditing(),
+            TextEdit textEdit => textEdit.HasFocus(),
+            _ => false
+        };
+    }
+
+    private static bool IsDevConsoleVisible()
+    {
+        try
+        {
+            return NDevConsole.Instance.Visible;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private static string CreateRegistrationId(Assembly assembly, string key)
@@ -316,6 +341,7 @@ internal sealed class JmcHotkeyRegistration(
     HotkeyOptions options)
 {
     private ulong lastTriggeredTicks;
+    private string? activePressId;
 
     public Assembly Assembly { get; } = assembly;
 
@@ -323,11 +349,45 @@ internal sealed class JmcHotkeyRegistration(
 
     public HotkeyOptions Options { get; } = options;
 
-    public bool IsPressed(InputEvent inputEvent)
+    public bool TryConsumePress(InputEvent inputEvent)
     {
         JmcKeyBinding binding = bindingGetter();
-        return binding.IsPressed(inputEvent, Options.AllowEcho, Options.ExactModifiers)
-            && TryConsumeDebounce();
+        if (Options.AllowEcho)
+        {
+            return binding.IsPressed(inputEvent, true, Options.ExactModifiers)
+                && TryConsumeDebounce();
+        }
+
+        if (activePressId != null
+            && (!binding.IsDown(Options.ExactModifiers) || IsActivePressExpired()))
+        {
+            activePressId = null;
+        }
+
+        if (binding.IsReleased(inputEvent))
+        {
+            activePressId = null;
+            return false;
+        }
+
+        if (!binding.IsPressed(inputEvent, Options.AllowEcho, Options.ExactModifiers))
+        {
+            return false;
+        }
+
+        string pressId = CreatePressId(binding, inputEvent);
+        if (activePressId == pressId)
+        {
+            return false;
+        }
+
+        if (!TryConsumeDebounce())
+        {
+            return false;
+        }
+
+        activePressId = pressId;
+        return true;
     }
 
     public void Invoke()
@@ -345,6 +405,25 @@ internal sealed class JmcHotkeyRegistration(
 
         lastTriggeredTicks = now;
         return true;
+    }
+
+    private bool IsActivePressExpired()
+    {
+        ulong now = Time.GetTicksMsec();
+        ulong releaseFallbackMs = Math.Max(Options.DebounceMs * 4, 750UL);
+        return lastTriggeredTicks != 0 && now - lastTriggeredTicks > releaseFallbackMs;
+    }
+
+    private static string CreatePressId(JmcKeyBinding binding, InputEvent inputEvent)
+    {
+        if (inputEvent is InputEventKey keyEvent)
+        {
+            return $"keyboard:{JmcKeyBinding.ReadKey(keyEvent)}:{JmcKeyBinding.ReadModifiers(keyEvent)}";
+        }
+
+        return binding.HasController
+            ? $"controller:{binding.Controller}"
+            : "unknown";
     }
 }
 
