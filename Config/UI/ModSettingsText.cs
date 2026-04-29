@@ -56,6 +56,8 @@ internal static class ModSettingsText
 
     public static string KeybindUnbound() => Resolve("KEYBIND_UNBOUND", "Unbound");
 
+    public static string ColorSelect() => Resolve("COLOR_SELECT", "Select");
+
     public static string ConfigTitle(string modName)
     {
         return Resolve(

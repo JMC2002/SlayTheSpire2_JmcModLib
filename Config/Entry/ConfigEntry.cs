@@ -278,6 +278,11 @@ internal static class ConfigValueConverter
             return new JmcKeyBinding(keyboard);
         }
 
+        if (targetType == typeof(Color))
+        {
+            return JmcColorValue.Convert(value);
+        }
+
         if (value is System.Text.Json.JsonElement jsonElement)
         {
             return jsonElement.ValueKind == System.Text.Json.JsonValueKind.Null

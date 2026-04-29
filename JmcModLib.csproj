@@ -56,6 +56,9 @@
       <Private>false</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="docs\" />
+  </ItemGroup>
 
   <!-- ======================================================== -->
   <!-- 自动化流水线：构建 -> 暂存区组装 -> Godot 打包 -> 部署 -->

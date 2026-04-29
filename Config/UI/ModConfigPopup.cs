@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 using Godot;
+using JmcModLib.Config;
 using JmcModLib.Config.Entry;
 using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Modding;
@@ -326,6 +327,11 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         Type valueType = Nullable.GetUnderlyingType(entry.ValueType) ?? entry.ValueType;
         UIConfigAttribute? uiAttribute = entry.UIAttribute;
 
+        if (valueType == typeof(Color))
+        {
+            return BuildColorEditor(entry, uiAttribute as UIColorAttribute ?? new UIColorAttribute());
+        }
+
         if (valueType == typeof(bool))
         {
             return BuildBooleanEditor(entry);
@@ -392,6 +398,29 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         };
 
         return checkbox;
+    }
+
+    private Control BuildColorEditor(ConfigEntry entry, UIColorAttribute colorAttribute)
+    {
+        var editor = JmcColorPickerEditor.Create(
+            JmcColorValue.Convert(entry.GetValue()),
+            colorAttribute,
+            color =>
+            {
+                if (!suppressControlEvents)
+                {
+                    TrySetEntryValue(entry, color);
+                }
+            });
+
+        bindings[entry.Key] = rawValue =>
+        {
+            suppressControlEvents = true;
+            editor.SetValue(JmcColorValue.Convert(rawValue));
+            suppressControlEvents = false;
+        };
+
+        return editor;
     }
 
     private LineEdit BuildStringEditor(ConfigEntry entry)

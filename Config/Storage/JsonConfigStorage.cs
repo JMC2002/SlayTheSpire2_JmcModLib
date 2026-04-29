@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using JmcModLib.Config;
 
 namespace JmcModLib.Config.Storage;
 
@@ -192,6 +193,7 @@ public sealed class JsonConfigStorage : IConfigStorage
         };
 
         options.Converters.Add(new JsonStringEnumConverter());
+        options.Converters.Add(new GodotColorJsonConverter());
         return options;
     }
 

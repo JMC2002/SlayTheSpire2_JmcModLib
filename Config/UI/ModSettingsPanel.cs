@@ -1,4 +1,5 @@
 using System.Globalization;
+using JmcModLib.Config;
 using JmcModLib.Config.Entry;
 using Godot;
 using MegaCrit.Sts2.addons.mega_text;
@@ -381,6 +382,11 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Type valueType = Nullable.GetUnderlyingType(entry.ValueType) ?? entry.ValueType;
         UIConfigAttribute? uiAttribute = entry.UIAttribute;
 
+        if (valueType == typeof(Color))
+        {
+            return BuildColorEditor(entry, uiAttribute as UIColorAttribute ?? new UIColorAttribute(), focusableControls);
+        }
+
         if (uiAttribute is UIKeybindAttribute keybindAttribute)
         {
             return BuildKeybindEditor(entry, keybindAttribute, focusableControls);
@@ -532,6 +538,34 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         focusableControls.Add(checkbox);
         return checkbox;
+    }
+
+    private Control BuildColorEditor(ConfigEntry entry, UIColorAttribute colorAttribute, List<Control> focusableControls)
+    {
+        var editor = JmcColorPickerEditor.Create(
+            JmcColorValue.Convert(entry.GetValue()),
+            colorAttribute,
+            color =>
+            {
+                if (!suppressControlEvents)
+                {
+                    TrySetEntryValue(entry, color);
+                }
+            });
+
+        bindings[CreateBindingKey(entry)] = rawValue =>
+        {
+            suppressControlEvents = true;
+            editor.SetValue(JmcColorValue.Convert(rawValue));
+            suppressControlEvents = false;
+        };
+
+        if (editor.PrimaryFocusableControl != null)
+        {
+            focusableControls.Add(editor.PrimaryFocusableControl);
+        }
+
+        return editor;
     }
 
     private LineEdit BuildStringEditor(ConfigEntry entry, List<Control> focusableControls)

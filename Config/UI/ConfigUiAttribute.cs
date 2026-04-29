@@ -150,6 +150,26 @@ public sealed class UIInputAttribute(int characterLimit = 0, bool multiline = fa
     public bool Multiline { get; } = multiline;
 }
 
+public enum UIColorPalette
+{
+    None,
+    Basic,
+    Game,
+    CardRarity,
+    Rainbow
+}
+
+public sealed class UIColorAttribute(params string[] presets) : UIConfigAttribute<Color>
+{
+    public string[] Presets { get; } = presets;
+
+    public UIColorPalette Palette { get; set; } = UIColorPalette.Game;
+
+    public bool AllowCustom { get; set; } = true;
+
+    public bool AllowAlpha { get; set; } = true;
+}
+
 public interface ISliderConfigAttribute
 {
     double Min { get; }
