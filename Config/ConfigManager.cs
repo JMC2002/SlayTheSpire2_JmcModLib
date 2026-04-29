@@ -381,7 +381,9 @@ public static class ConfigManager
             setter,
             onChanged,
             attribute,
-            uiAttribute);
+            uiAttribute,
+            member.DeclaringType,
+            member.Name);
     }
 
     private static Action<TValue>? BuildOnChangedCallback<TValue>(

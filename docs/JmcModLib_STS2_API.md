@@ -162,6 +162,8 @@ classDiagram
         +Group string
         +DisplayName string
         +Key string
+        +SourceDeclaringType Type?
+        +SourceMemberName string?
         +ValueType Type
         +DefaultValue object?
         +GetValue() object?
@@ -847,7 +849,7 @@ public static string UiSize = "Normal";
 
 ```csharp
 [UIDropdown]
-[Config("默认打开显示器")]
+[Config("默认打开显示器", Key = "ui.default_open_screen")]
 public static string DefaultOpenScreen = "跟随游戏窗口";
 
 public static IReadOnlyList<string> GetDefaultOpenScreenOptions()
@@ -869,7 +871,7 @@ public static IReadOnlyList<string> GetDefaultOpenScreenOptions()
 }
 ```
 
-当 `string` 类型的 `[UIDropdown]` 没有写静态候选项时，JML 会在同一个配置类里按以下顺序查找静态无参数 provider：
+当 `string` 类型的 `[UIDropdown]` 没有写静态候选项时，JML 会在同一个配置类里按以下顺序查找静态无参数 provider。provider 跟配置字段/属性名绑定，不跟 `ConfigAttribute.Key` 绑定，所以即使配置使用显式保存 key 也能生效：
 
 - `{字段名或属性名}Options`
 - `Get{字段名或属性名}Options`

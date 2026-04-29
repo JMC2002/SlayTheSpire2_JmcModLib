@@ -69,6 +69,14 @@ internal static class DropdownOptionsResolver
         [NotNullWhen(true)]
         out string? memberName)
     {
+        declaringType = entry.SourceDeclaringType;
+        memberName = entry.SourceMemberName;
+
+        if (declaringType != null && !string.IsNullOrWhiteSpace(memberName))
+        {
+            return true;
+        }
+
         declaringType = null;
         memberName = null;
 
