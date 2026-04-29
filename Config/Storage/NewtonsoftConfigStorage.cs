@@ -1,29 +1,31 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Godot;
 using JmcModLib.Config.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 
 namespace JmcModLib.Config.Storage;
 
 /// <summary>
-/// Dependency-free JSON storage backend for mod configuration files.
+/// Newtonsoft.Json based storage backend for mod configuration files.
 /// </summary>
-public sealed class JsonConfigStorage : IConfigStorage
+public sealed class NewtonsoftConfigStorage : IConfigStorage
 {
     private sealed class ConfigDocument
     {
-        public Dictionary<string, Dictionary<string, JsonElement>> Groups { get; set; } = new(StringComparer.Ordinal);
+        public Dictionary<string, Dictionary<string, JToken?>> Groups { get; set; } = new(StringComparer.Ordinal);
     }
 
-    private static readonly JsonSerializerOptions SerializerOptions = CreateSerializerOptions();
+    private static readonly JsonSerializerSettings SerializerSettings = CreateSerializerSettings();
 
     private readonly ConcurrentDictionary<Assembly, ConfigDocument> cache = new();
     private readonly ConcurrentDictionary<Assembly, byte> dirtyAssemblies = new();
     private readonly string rootDirectory;
 
-    public JsonConfigStorage(string? rootDirectory = null)
+    public NewtonsoftConfigStorage(string? rootDirectory = null)
     {
         this.rootDirectory = string.IsNullOrWhiteSpace(rootDirectory)
             ? ResolveDefaultRootDirectory()
@@ -55,13 +57,15 @@ public sealed class JsonConfigStorage : IConfigStorage
         assembly = ResolveAssembly(assembly);
         ConfigDocument document = GetOrLoadDocument(assembly);
 
-        if (!document.Groups.TryGetValue(group, out Dictionary<string, JsonElement>? groupValues))
+        if (!document.Groups.TryGetValue(group, out Dictionary<string, JToken?>? groupValues))
         {
-            groupValues = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            groupValues = new Dictionary<string, JToken?>(StringComparer.Ordinal);
             document.Groups[group] = groupValues;
         }
 
-        groupValues[key] = SerializeValue(value);
+        groupValues[key] = value == null
+            ? JValue.CreateNull()
+            : JToken.FromObject(value, CreateSerializer());
         dirtyAssemblies[assembly] = 0;
     }
 
@@ -72,18 +76,22 @@ public sealed class JsonConfigStorage : IConfigStorage
         assembly = ResolveAssembly(assembly);
         ConfigDocument document = GetOrLoadDocument(assembly);
 
-        if (!document.Groups.TryGetValue(group, out Dictionary<string, JsonElement>? groupValues)
-            || !groupValues.TryGetValue(key, out JsonElement rawValue))
+        if (!document.Groups.TryGetValue(group, out Dictionary<string, JToken?>? groupValues)
+            || !groupValues.TryGetValue(key, out JToken? rawValue))
         {
             value = null;
             return false;
         }
 
+        if (rawValue is null || rawValue.Type is JTokenType.Null or JTokenType.Undefined)
+        {
+            value = null;
+            return true;
+        }
+
         try
         {
-            value = rawValue.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
-                ? null
-                : rawValue.Deserialize(valueType, SerializerOptions);
+            value = rawValue.ToObject(valueType, CreateSerializer());
             return true;
         }
         catch (Exception ex)
@@ -106,7 +114,7 @@ public sealed class JsonConfigStorage : IConfigStorage
         string filePath = GetFilePath(assembly);
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
 
-        string json = JsonSerializer.Serialize(document, SerializerOptions);
+        string json = JsonConvert.SerializeObject(document, Formatting.Indented, SerializerSettings);
         string tempFile = $"{filePath}.tmp";
         File.WriteAllText(tempFile, json);
         File.Copy(tempFile, filePath, overwrite: true);
@@ -136,7 +144,7 @@ public sealed class JsonConfigStorage : IConfigStorage
                 return new ConfigDocument();
             }
 
-            ConfigDocument document = JsonSerializer.Deserialize<ConfigDocument>(json, SerializerOptions)
+            ConfigDocument document = JsonConvert.DeserializeObject<ConfigDocument>(json, SerializerSettings)
                 ?? new ConfigDocument();
             NormalizeDocument(document);
             return document;
@@ -148,23 +156,14 @@ public sealed class JsonConfigStorage : IConfigStorage
         }
     }
 
-    private static JsonElement SerializeValue(object? value)
-    {
-        if (value == null)
-        {
-            using JsonDocument document = JsonDocument.Parse("null");
-            return document.RootElement.Clone();
-        }
-
-        return JsonSerializer.SerializeToElement(value, value.GetType(), SerializerOptions);
-    }
-
     private static void NormalizeDocument(ConfigDocument document)
     {
-        var normalizedGroups = new Dictionary<string, Dictionary<string, JsonElement>>(StringComparer.Ordinal);
-        foreach ((string group, Dictionary<string, JsonElement> values) in document.Groups)
+        var normalizedGroups = new Dictionary<string, Dictionary<string, JToken?>>(StringComparer.Ordinal);
+        foreach ((string group, Dictionary<string, JToken?>? values) in document.Groups)
         {
-            normalizedGroups[group] = new Dictionary<string, JsonElement>(values, StringComparer.Ordinal);
+            normalizedGroups[group] = values == null
+                ? new Dictionary<string, JToken?>(StringComparer.Ordinal)
+                : new Dictionary<string, JToken?>(values, StringComparer.Ordinal);
         }
 
         document.Groups = normalizedGroups;
@@ -200,23 +199,88 @@ public sealed class JsonConfigStorage : IConfigStorage
         return string.Concat(rawName.Select(ch => invalidChars.Contains(ch) ? '_' : ch));
     }
 
-    private static JsonSerializerOptions CreateSerializerOptions()
+    private static JsonSerializer CreateSerializer()
     {
-        var options = new JsonSerializerOptions
-        {
-            AllowTrailingCommas = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            IncludeFields = true,
-            WriteIndented = true
-        };
+        return JsonSerializer.Create(SerializerSettings);
+    }
 
-        options.Converters.Add(new JsonStringEnumConverter());
-        options.Converters.Add(new GodotColorJsonConverter());
-        return options;
+    private static JsonSerializerSettings CreateSerializerSettings()
+    {
+        return new JsonSerializerSettings
+        {
+            DateParseHandling = DateParseHandling.None,
+            MissingMemberHandling = MissingMemberHandling.Ignore,
+            NullValueHandling = NullValueHandling.Include,
+            ObjectCreationHandling = ObjectCreationHandling.Replace,
+            TypeNameHandling = TypeNameHandling.None,
+            Converters =
+            {
+                new StringEnumConverter(),
+                new GodotColorNewtonsoftJsonConverter()
+            }
+        };
     }
 
     private static Assembly ResolveAssembly(Assembly? assembly)
     {
-        return AssemblyResolver.Resolve(assembly, typeof(JsonConfigStorage));
+        return AssemblyResolver.Resolve(assembly, typeof(NewtonsoftConfigStorage));
+    }
+
+    private sealed class GodotColorNewtonsoftJsonConverter : JsonConverter<Color>
+    {
+        public override Color ReadJson(
+            JsonReader reader,
+            Type objectType,
+            Color existingValue,
+            bool hasExistingValue,
+            JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.Null)
+            {
+                return Colors.White;
+            }
+
+            JToken token = JToken.Load(reader);
+            return token.Type switch
+            {
+                JTokenType.String => JmcColorValue.Parse(token.Value<string>()),
+                JTokenType.Object => ReadObject((JObject)token),
+                _ => Colors.White
+            };
+        }
+
+        public override void WriteJson(JsonWriter writer, Color value, JsonSerializer serializer)
+        {
+            writer.WriteValue(JmcColorValue.ToHex(value));
+        }
+
+        private static Color ReadObject(JObject value)
+        {
+            float r = ReadFloat(value, "r", fallback: 1f);
+            float g = ReadFloat(value, "g", fallback: 1f);
+            float b = ReadFloat(value, "b", fallback: 1f);
+            float a = ReadFloat(value, "a", fallback: 1f);
+            return new Color(r, g, b, a);
+        }
+
+        private static float ReadFloat(JObject value, string propertyName, float fallback)
+        {
+            JToken? token = value.GetValue(propertyName, StringComparison.OrdinalIgnoreCase);
+            if (token == null)
+            {
+                return fallback;
+            }
+
+            return token.Type switch
+            {
+                JTokenType.Float or JTokenType.Integer => token.Value<float>(),
+                JTokenType.String when float.TryParse(
+                    token.Value<string>(),
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out float parsed) => parsed,
+                _ => fallback
+            };
+        }
     }
 }

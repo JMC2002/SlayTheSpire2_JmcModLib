@@ -16,7 +16,7 @@ public static class ConfigManager
 {
     private static readonly ConcurrentDictionary<Assembly, ConcurrentDictionary<string, ConfigEntry>> Entries = new();
     private static readonly ConcurrentDictionary<Assembly, IConfigStorage> Storages = new();
-    private static readonly IConfigStorage DefaultStorage = new JsonConfigStorage();
+    private static readonly IConfigStorage DefaultStorage = new NewtonsoftConfigStorage();
 
     private static int initialized;
 

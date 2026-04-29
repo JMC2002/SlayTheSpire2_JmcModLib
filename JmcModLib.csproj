@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>JmcModLib</AssemblyName>
 
     <!-- Mod 基础信息 -->
     <ModName>$(MSBuildProjectName)</ModName>
@@ -25,12 +26,18 @@
 
     <!-- 游戏最终加载的 mods 目录 -->
     <ModGameDir>$(Sts2Path)\mods\$(ModName)</ModGameDir>
+    <LaunchGamePrompt Condition="'$(LaunchGamePrompt)' == ''">true</LaunchGamePrompt>
 
   </PropertyGroup>
 
   <ItemGroup>
     <Content Remove="JmcModLib\modPublish\JmcModLib.json" />
+    <Compile Remove="Bootstrap\**\*.cs" />
     <Compile Remove="Core\CardReplacer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +46,7 @@
 
   <ItemGroup>
     <None Include="JmcModLib\modPublish\JmcModLib.json" />
+    <None Include="JmcModLib\modPublish\JmcModLib.Sts2.props" />
   </ItemGroup>
 
   <!-- 引用游戏 DLL -->
@@ -136,10 +144,23 @@ texture_format/etc2=false
   <Target Name="BuildAndDeploy" AfterTargets="Build">
     <MakeDir Directories="$(PublishDir)" />
 
-    <Message Text="[1/4] 准备 DLL..." Importance="High" />
+    <Message Text="[1/4] 准备 Runtime 与 Bootstrap DLL..." Importance="High" />
 
-    <!-- [2/4] 复制 DLL 到发布区 -->
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PublishDir)" />
+    <PropertyGroup>
+      <BootstrapProject>$(ProjectDir)Bootstrap\JmcModLib.Bootstrap.csproj</BootstrapProject>
+      <BootstrapTargetPath>$(ProjectDir)Bootstrap\bin\$(Configuration)\$(TargetFramework)\JmcModLib.Bootstrap.dll</BootstrapTargetPath>
+    </PropertyGroup>
+
+    <MSBuild
+      Projects="$(BootstrapProject)"
+      Targets="Restore;Build"
+      Properties="Configuration=$(Configuration);Platform=$(Platform);Sts2DataDir=$(Sts2DataDir)" />
+
+    <!-- [2/4] 复制 DLL 到发布区：游戏加载 Bootstrap，子 MOD 引用 Runtime -->
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(PublishDir)\JmcModLib.Runtime.dll" />
+    <Copy SourceFiles="$(BootstrapTargetPath)" DestinationFiles="$(PublishDir)\JmcModLib.dll" />
+    <Copy SourceFiles="@(ReferenceCopyLocalPaths)" DestinationFolder="$(PublishDir)" Condition="'@(ReferenceCopyLocalPaths)' != ''" />
+    <Copy SourceFiles="$(PkgNewtonsoft_Json)\lib\net6.0\Newtonsoft.Json.dll" DestinationFolder="$(PublishDir)" Condition="Exists('$(PkgNewtonsoft_Json)\lib\net6.0\Newtonsoft.Json.dll')" />
 
     <!-- [3/4] 调用 Godot 打包 PCK -->
     <Message Text="[2/4] 调用 Godot 打包 PCK (工作目录: $(ModLocalDir))..." Importance="High" />
@@ -163,7 +184,7 @@ texture_format/etc2=false
   </Target>
 
   <!-- 弹窗询问启动游戏 -->
-  <Target Name="AskToLaunchGame" AfterTargets="BuildAndDeploy">
+  <Target Name="AskToLaunchGame" AfterTargets="BuildAndDeploy" Condition="'$(LaunchGamePrompt)' != 'false'">
     <!-- 确保游戏环境就绪：生成 steam_appid.txt (只在文件不存在时创建)，防止游戏拦截 -->
     <WriteLinesToFile File="$(Sts2Path)\steam_appid.txt" Lines="2868840" Overwrite="false" Encoding="ASCII" Condition="!Exists('$(Sts2Path)\steam_appid.txt')" />
 

@@ -3,6 +3,7 @@ using System.Reflection;
 using Godot;
 using JmcModLib.Config;
 using JmcModLib.Config.Entry;
+using JmcModLib.Config.Serialization;
 using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -461,11 +462,7 @@ internal sealed class ModConfigPopup : Control, IScreenContext
             CustomMinimumSize = new Vector2(260f, 0f)
         };
 
-        IReadOnlyList<string> options = valueType.IsEnum
-            ? [.. Enum.GetNames(valueType).Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)]
-            : dropdownAttribute?.Options.Count > 0
-                ? dropdownAttribute.Options
-                : [entry.GetValue()?.ToString() ?? string.Empty];
+        IReadOnlyList<string> options = DropdownOptionsResolver.Resolve(entry, dropdownAttribute, valueType);
 
         for (int i = 0; i < options.Count; i++)
         {

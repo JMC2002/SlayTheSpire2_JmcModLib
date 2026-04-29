@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Reflection;
-using System.Text.Json;
 using Godot;
+using JmcModLib.Config.Serialization;
 using JmcModLib.Config.Storage;
 using JmcModLib.Config.UI;
 
@@ -281,13 +281,6 @@ internal static class ConfigValueConverter
         if (targetType == typeof(Color))
         {
             return JmcColorValue.Convert(value);
-        }
-
-        if (value is System.Text.Json.JsonElement jsonElement)
-        {
-            return jsonElement.ValueKind == System.Text.Json.JsonValueKind.Null
-                ? null
-                : JsonSerializer.Deserialize(jsonElement.GetRawText(), targetType);
         }
 
         if (targetType.IsEnum)

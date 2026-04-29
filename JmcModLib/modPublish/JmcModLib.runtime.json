@@ -1,0 +1,14 @@
+{
+  "runtimeAssembly": "JmcModLib.Runtime.dll",
+  "initializerType": "JmcModLib.MainFile",
+  "initializerMethod": "Initialize",
+  "probeDirectories": [
+    ".",
+    "lib",
+    "libs"
+  ],
+  "dependencies": [
+    "Newtonsoft.Json.dll"
+  ],
+  "probeAllDlls": true
+}

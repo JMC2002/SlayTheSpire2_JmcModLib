@@ -1,6 +1,7 @@
 using System.Globalization;
 using JmcModLib.Config;
 using JmcModLib.Config.Entry;
+using JmcModLib.Config.Serialization;
 using Godot;
 using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Modding;
@@ -605,16 +606,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Type valueType,
         List<Control> focusableControls)
     {
-        IReadOnlyList<string> options = valueType.IsEnum
-            ? [.. Enum.GetNames(valueType).Where(option => dropdownAttribute?.Exclude.Contains(option, StringComparer.OrdinalIgnoreCase) != true)]
-            : dropdownAttribute?.Options.Count > 0
-                ? dropdownAttribute.Options
-                : [entry.GetValue()?.ToString() ?? string.Empty];
-
-        if (options.Count == 0)
-        {
-            options = [entry.GetValue()?.ToString() ?? string.Empty];
-        }
+        IReadOnlyList<string> options = DropdownOptionsResolver.Resolve(entry, dropdownAttribute, valueType);
 
         if (nativeTemplates?.DropdownTemplate != null && nativeTemplates.DropdownItemTemplate != null)
         {

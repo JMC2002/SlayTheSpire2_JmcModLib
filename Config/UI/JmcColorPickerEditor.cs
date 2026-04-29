@@ -1,5 +1,6 @@
 using Godot;
 using JmcModLib.Config;
+using JmcModLib.Config.Serialization;
 
 namespace JmcModLib.Config.UI;
 
@@ -13,7 +14,7 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
     private const float BaseViewportHeight = 1080f;
     private const int InlineFontSize = 24;
     private const int BaseControlFontSize = 24;
-    private const string PopupFontHookMetaKey = "JmcModLib.ColorPicker.FontHooked";
+    private const string PopupFontHookMetaKey = "JmcModLib_ColorPicker_FontHooked";
 
     private UIColorAttribute attribute = new();
     private Action<Color>? onChanged;
@@ -263,6 +264,20 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
 
     private static int ApplyFontSizeRecursive(Node node, int fontSize, float controlMinimumHeight)
     {
+        return ApplyFontSizeRecursive(node, fontSize, controlMinimumHeight, []);
+    }
+
+    private static int ApplyFontSizeRecursive(
+        Node node,
+        int fontSize,
+        float controlMinimumHeight,
+        HashSet<ulong> visited)
+    {
+        if (!visited.Add(node.GetInstanceId()))
+        {
+            return 0;
+        }
+
         int styledControls = 0;
         if (node is Window window)
         {
@@ -275,14 +290,14 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
         if (node is Control control)
         {
             ApplyFontSize(control, fontSize);
-            styledControls += ApplyOwnedPopupFontSize(control, fontSize, controlMinimumHeight);
+            styledControls += ApplyOwnedPopupFontSize(control, fontSize, controlMinimumHeight, visited);
             styledControls++;
             ApplyControlMetrics(control, controlMinimumHeight);
         }
 
         foreach (Node child in node.GetChildren(includeInternal: true))
         {
-            styledControls += ApplyFontSizeRecursive(child, fontSize, controlMinimumHeight);
+            styledControls += ApplyFontSizeRecursive(child, fontSize, controlMinimumHeight, visited);
         }
 
         return styledControls;
@@ -310,12 +325,16 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
         }
     }
 
-    private static int ApplyOwnedPopupFontSize(Control control, int fontSize, float controlMinimumHeight)
+    private static int ApplyOwnedPopupFontSize(
+        Control control,
+        int fontSize,
+        float controlMinimumHeight,
+        HashSet<ulong> visited)
     {
         return control switch
         {
-            OptionButton optionButton => ApplyFontSizeRecursive(optionButton.GetPopup(), fontSize, controlMinimumHeight),
-            MenuButton menuButton => ApplyFontSizeRecursive(menuButton.GetPopup(), fontSize, controlMinimumHeight),
+            OptionButton optionButton => ApplyFontSizeRecursive(optionButton.GetPopup(), fontSize, controlMinimumHeight, visited),
+            MenuButton menuButton => ApplyFontSizeRecursive(menuButton.GetPopup(), fontSize, controlMinimumHeight, visited),
             _ => 0
         };
     }
