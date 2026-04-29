@@ -187,6 +187,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         foreach (Node child in listRoot.GetChildren())
         {
+            listRoot.RemoveChild(child);
             child.QueueFree();
         }
 
@@ -204,7 +205,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         if (modsWithConfig.Count == 0)
         {
             listRoot.AddChild(BuildNotice(ModSettingsText.NoConfigMods()));
-            RefreshPanelSize();
+            RefreshPanelSizeAfterLayout();
             return;
         }
 
@@ -214,7 +215,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         }
 
         UpdateFocusMap(focusableControls);
-        RefreshPanelSize();
+        RefreshPanelSizeAfterLayout();
     }
     private VBoxContainer BuildModSection(Mod mod, List<Control> focusableControls)
     {
@@ -842,6 +843,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         foreach (Node child in titleActions.GetChildren())
         {
+            titleActions.RemoveChild(child);
             child.QueueFree();
         }
 
@@ -1101,10 +1103,14 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         Vector2 parentSize = parent.Size;
         Vector2 minimumSize = centerRoot.GetMinimumSize();
         float width = Math.Min(parentSize.X, Math.Max(ContentWidth, minimumSize.X));
-        // The parent NScrollableContainer already adds its own top/bottom padding.
-        // Inflating the panel here makes the scrollbar travel beyond real content.
         Size = new Vector2(width, MathF.Max(minimumSize.Y, 1f));
         Position = new Vector2(Mathf.Max((parentSize.X - Size.X) * 0.5f, 0f), Position.Y);
+    }
+
+    private void RefreshPanelSizeAfterLayout()
+    {
+        RefreshPanelSize();
+        Callable.From(RefreshPanelSize).CallDeferred();
     }
 
     private void UpdateFocusMap(List<Control> focusableControls)
