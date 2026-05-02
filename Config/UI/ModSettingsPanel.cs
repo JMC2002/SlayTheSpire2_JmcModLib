@@ -12,7 +12,6 @@ namespace JmcModLib.Config.UI;
 internal sealed class ModSettingsPanel : NSettingsPanel
 {
     private readonly Dictionary<string, Action<object?>> bindings = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, bool> CollapsedSections = new(StringComparer.OrdinalIgnoreCase);
 
     private const float ContentWidth = 1120f;
     private const int IntroFontSize = 24;
@@ -914,7 +913,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         void ToggleSection()
         {
-            CollapsedSections[GetSectionKey(mod)] = !isCollapsed;
+            ModSettingsUiState.SetSectionCollapsed(GetSectionKey(mod), !isCollapsed);
             RebuildContent();
         }
 
@@ -1199,15 +1198,12 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private static bool IsSectionCollapsed(Mod mod)
     {
-        return CollapsedSections.TryGetValue(GetSectionKey(mod), out bool isCollapsed) && isCollapsed;
+        return ModSettingsUiState.IsSectionCollapsed(GetSectionKey(mod));
     }
 
     private static void SetAllSectionsCollapsed(IEnumerable<Mod> mods, bool collapsed)
     {
-        foreach (Mod mod in mods)
-        {
-            CollapsedSections[GetSectionKey(mod)] = collapsed;
-        }
+        ModSettingsUiState.SetSectionsCollapsed(mods.Select(GetSectionKey), collapsed);
     }
     private static bool IsNumericType(Type type)
     {

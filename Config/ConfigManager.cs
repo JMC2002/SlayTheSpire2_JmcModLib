@@ -111,10 +111,14 @@ public static class ConfigManager
 
     public static IEnumerable<string> GetGroups(Assembly? assembly = null)
     {
-        return GetEntries(assembly)
-            .Select(static entry => entry.Group)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(static group => group, StringComparer.Ordinal);
+        Assembly resolvedAssembly = ResolveAssembly(assembly);
+        ConfigEntry[] entries = [.. GetEntries(resolvedAssembly)];
+        return entries
+            .GroupBy(static entry => entry.Group, StringComparer.Ordinal)
+            .Select(static group => new GroupInfo(group.Key, [.. group]))
+            .OrderBy(group => GetGroupSortKey(resolvedAssembly, group.Name, group.Entries), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(static group => group.Name, StringComparer.Ordinal)
+            .Select(static group => group.Name);
     }
 
     public static bool TryGetEntry(string key, [NotNullWhen(true)] out ConfigEntry? entry, Assembly? assembly = null)
@@ -499,6 +503,20 @@ public static class ConfigManager
     {
         return string.IsNullOrWhiteSpace(group) ? ConfigAttribute.DefaultGroup : group.Trim();
     }
+
+    private static string GetGroupSortKey(Assembly assembly, string group, IReadOnlyCollection<ConfigEntry> entries)
+    {
+        try
+        {
+            return ConfigLocalization.GetGroupName(assembly, group, entries);
+        }
+        catch
+        {
+            return group;
+        }
+    }
+
+    private readonly record struct GroupInfo(string Name, IReadOnlyCollection<ConfigEntry> Entries);
 
     private static string ResolveStorageKey(ConfigAttribute attribute, MemberAccessor member)
     {
