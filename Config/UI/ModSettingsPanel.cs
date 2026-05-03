@@ -65,6 +65,15 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         ConfigManager.AssemblyRegistered -= OnAssemblyChanged;
         ConfigManager.AssemblyUnregistered -= OnAssemblyChanged;
         L10n.UnsubscribeToLocaleChange(OnLocaleChanged);
+        bindings.Clear();
+        listeningKeybind = null;
+        centerRoot = null;
+        root = null;
+        listRoot = null;
+        titleActions = null;
+        titleLabel = null;
+        descriptionLabel = null;
+        nativeTemplates = null;
         base._ExitTree();
     }
 
@@ -467,11 +476,12 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
             bindings[CreateBindingKey(entry)] = rawValue =>
             {
-                suppressControlEvents = true;
-                JmcKeyBinding updatedBinding = JmcKeyBindingValue.FromValue(rawValue);
-                keybind.SetValue(updatedBinding);
-                enableTickbox?.SetValue(updatedBinding.Enabled);
-                suppressControlEvents = false;
+                RunSuppressed(() =>
+                {
+                    JmcKeyBinding updatedBinding = JmcKeyBindingValue.FromValue(rawValue);
+                    keybind.SetValue(updatedBinding);
+                    enableTickbox?.SetValue(updatedBinding.Enabled);
+                });
             };
 
             keybind.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -552,9 +562,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
             bindings[CreateBindingKey(entry)] = rawValue =>
             {
-                suppressControlEvents = true;
-                tickbox.SetValue(ToBoolean(rawValue));
-                suppressControlEvents = false;
+                RunSuppressed(() => tickbox.SetValue(ToBoolean(rawValue)));
             };
 
             focusableControls.Add(tickbox);
@@ -578,9 +586,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         bindings[CreateBindingKey(entry)] = rawValue =>
         {
-            suppressControlEvents = true;
-            checkbox.ButtonPressed = ToBoolean(rawValue);
-            suppressControlEvents = false;
+            RunSuppressed(() => checkbox.ButtonPressed = ToBoolean(rawValue));
         };
 
         focusableControls.Add(checkbox);
@@ -602,9 +608,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         bindings[CreateBindingKey(entry)] = rawValue =>
         {
-            suppressControlEvents = true;
-            editor.SetValue(JmcColorValue.Convert(rawValue));
-            suppressControlEvents = false;
+            RunSuppressed(() => editor.SetValue(JmcColorValue.Convert(rawValue)));
         };
 
         if (editor.PrimaryFocusableControl != null)
@@ -637,9 +641,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
         bindings[CreateBindingKey(entry)] = rawValue =>
         {
-            suppressControlEvents = true;
-            lineEdit.Text = rawValue?.ToString() ?? string.Empty;
-            suppressControlEvents = false;
+            RunSuppressed(() => lineEdit.Text = rawValue?.ToString() ?? string.Empty);
         };
 
         focusableControls.Add(lineEdit);
@@ -679,9 +681,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
             bindings[CreateBindingKey(entry)] = rawValue =>
             {
-                suppressControlEvents = true;
-                nativeDropdown.SetValue(rawValue?.ToString() ?? string.Empty);
-                suppressControlEvents = false;
+                RunSuppressed(() => nativeDropdown.SetValue(rawValue?.ToString() ?? string.Empty));
             };
 
             focusableControls.Add(nativeDropdown);
@@ -720,9 +720,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
                 .Select((text, i) => new { text, i })
                 .FirstOrDefault(item => string.Equals(item.text, selectedText, StringComparison.OrdinalIgnoreCase))?.i ?? 0;
 
-            suppressControlEvents = true;
-            dropdown.Select(index);
-            suppressControlEvents = false;
+            RunSuppressed(() => dropdown.Select(index));
         };
 
         bindings[CreateBindingKey(entry)](entry.GetValue());
@@ -755,9 +753,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         bindings[CreateBindingKey(entry)] = rawValue =>
         {
             double numericValue = System.Convert.ToDouble(ConfigValueConverter.Convert(rawValue, valueType), CultureInfo.InvariantCulture);
-            suppressControlEvents = true;
-            spinBox.Value = numericValue;
-            suppressControlEvents = false;
+            RunSuppressed(() => spinBox.Value = numericValue);
         };
 
         bindings[CreateBindingKey(entry)](entry.GetValue());
@@ -794,9 +790,7 @@ internal sealed class ModSettingsPanel : NSettingsPanel
             bindings[CreateBindingKey(entry)] = rawValue =>
             {
                 double numericValue = System.Convert.ToDouble(ConfigValueConverter.Convert(rawValue, valueType), CultureInfo.InvariantCulture);
-                suppressControlEvents = true;
-                nativeSlider.SetValue(numericValue);
-                suppressControlEvents = false;
+                RunSuppressed(() => nativeSlider.SetValue(numericValue));
             };
 
             focusableControls.Add(nativeSlider);
@@ -840,10 +834,11 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         bindings[CreateBindingKey(entry)] = rawValue =>
         {
             double numericValue = System.Convert.ToDouble(ConfigValueConverter.Convert(rawValue, valueType), CultureInfo.InvariantCulture);
-            suppressControlEvents = true;
-            slider.Value = numericValue;
-            valueLabel.Text = FormatNumericValue(numericValue, valueType);
-            suppressControlEvents = false;
+            RunSuppressed(() =>
+            {
+                slider.Value = numericValue;
+                valueLabel.Text = FormatNumericValue(numericValue, valueType);
+            });
         };
 
         bindings[CreateBindingKey(entry)](entry.GetValue());
@@ -1079,19 +1074,20 @@ internal sealed class ModSettingsPanel : NSettingsPanel
         catch (Exception ex)
         {
             ModLogger.Error($"Failed to update config entry {entry.Key}", ex, entry.Assembly);
-            if (bindings.TryGetValue(CreateBindingKey(entry), out Action<object?>? updateBinding))
+            try
             {
-                updateBinding(entry.GetValue());
+                _ = TryUpdateBinding(entry, entry.GetValue(), logUnexpectedFailure: false);
+            }
+            catch (Exception rollbackEx)
+            {
+                ModLogger.Warn($"Failed to restore config entry UI {entry.Key} after a rejected value.", rollbackEx, entry.Assembly);
             }
         }
     }
 
     private void OnConfigValueChanged(ConfigEntry entry, object? value)
     {
-        if (bindings.TryGetValue(CreateBindingKey(entry), out Action<object?>? updateBinding))
-        {
-            updateBinding(value);
-        }
+        _ = TryUpdateBinding(entry, value, logUnexpectedFailure: true);
     }
 
     private void OnEntryRegistered(ConfigEntry _)
@@ -1112,9 +1108,14 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private void OnLocaleChanged()
     {
+        if (!IsGodotObjectValid(this))
+        {
+            return;
+        }
+
         RefreshStaticText();
 
-        if (Visible)
+        if (Visible && IsGodotObjectValid(listRoot))
         {
             RebuildContent();
         }
@@ -1122,15 +1123,76 @@ internal sealed class ModSettingsPanel : NSettingsPanel
 
     private void RefreshStaticText()
     {
-        if (titleLabel != null)
+        MegaRichTextLabel? currentTitle = titleLabel;
+        if (currentTitle != null && GodotObject.IsInstanceValid(currentTitle))
         {
-            titleLabel.Text = $"[gold]{ModSettingsText.Title()}[/gold]";
+            currentTitle.Text = $"[gold]{ModSettingsText.Title()}[/gold]";
+        }
+        else
+        {
+            titleLabel = null;
         }
 
-        if (descriptionLabel != null)
+        MegaRichTextLabel? currentDescription = descriptionLabel;
+        if (currentDescription != null && GodotObject.IsInstanceValid(currentDescription))
         {
-            descriptionLabel.Text = $"[color=#aab7bc]{ModSettingsText.Description()}[/color]";
+            currentDescription.Text = $"[color=#aab7bc]{ModSettingsText.Description()}[/color]";
         }
+        else
+        {
+            descriptionLabel = null;
+        }
+    }
+
+    private bool TryUpdateBinding(ConfigEntry entry, object? value, bool logUnexpectedFailure)
+    {
+        string bindingKey = CreateBindingKey(entry);
+        if (!bindings.TryGetValue(bindingKey, out Action<object?>? updateBinding))
+        {
+            return true;
+        }
+
+        try
+        {
+            updateBinding(value);
+            return true;
+        }
+        catch (ObjectDisposedException)
+        {
+            suppressControlEvents = false;
+            bindings.Remove(bindingKey);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            suppressControlEvents = false;
+            bindings.Remove(bindingKey);
+            if (logUnexpectedFailure)
+            {
+                ModLogger.Warn($"Failed to refresh config entry UI {entry.Key}. The config value was already updated.", ex, entry.Assembly);
+            }
+
+            return false;
+        }
+    }
+
+    private void RunSuppressed(Action action)
+    {
+        bool previous = suppressControlEvents;
+        suppressControlEvents = true;
+        try
+        {
+            action();
+        }
+        finally
+        {
+            suppressControlEvents = previous;
+        }
+    }
+
+    private static bool IsGodotObjectValid(GodotObject? value)
+    {
+        return value != null && GodotObject.IsInstanceValid(value);
     }
 
     private void RefreshPanelSize()

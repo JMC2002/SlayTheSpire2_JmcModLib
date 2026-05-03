@@ -870,13 +870,21 @@ internal sealed class JmcSettingsTickbox : NButton
     {
         isTicked = value;
 
-        tickedImage?.Visible = value;
+        SetVisibleIfValid(tickedImage, value);
 
-        notTickedImage?.Visible = !value;
+        SetVisibleIfValid(notTickedImage, !value);
 
         if (notify)
         {
             onChanged?.Invoke(value);
+        }
+    }
+
+    private static void SetVisibleIfValid(Control? control, bool visible)
+    {
+        if (control != null && GodotObject.IsInstanceValid(control))
+        {
+            control.Visible = visible;
         }
     }
 }
@@ -919,8 +927,8 @@ internal sealed class JmcSettingsSlider : NSettingsSlider
     {
         ConnectSignals();
         valueLabel = GetNodeOrNull<MegaLabel>("SliderValue");
-        _slider.MinValue = minValue;
-        _slider.MaxValue = maxValue;
+        _slider.MinValue = 0.0;
+        _slider.MaxValue = GetNativeMaxValue();
         _slider.Step = stepValue;
         _slider.Connect(Godot.Range.SignalName.ValueChanged, Callable.From<double>(HandleValueChanged));
         SetValue(initialValue);
@@ -928,24 +936,47 @@ internal sealed class JmcSettingsSlider : NSettingsSlider
 
     public void SetValue(double value)
     {
+        double clampedValue = ClampValue(value);
         suppressChanged = true;
-        _slider.SetValueWithoutAnimation(value);
-        UpdateValueLabel(value);
+        _slider.SetValueWithoutAnimation(ToNativeValue(clampedValue));
+        UpdateValueLabel(clampedValue);
         suppressChanged = false;
     }
 
     private void HandleValueChanged(double value)
     {
-        UpdateValueLabel(value);
+        double actualValue = FromNativeValue(value);
+        UpdateValueLabel(actualValue);
         if (!suppressChanged)
         {
-            onChanged?.Invoke(value);
+            onChanged?.Invoke(actualValue);
         }
     }
 
     private void UpdateValueLabel(double value)
     {
         valueLabel?.SetTextAutoSize(formatter?.Invoke(value) ?? value.ToString("0.##"));
+    }
+
+    private double ToNativeValue(double value)
+    {
+        return ClampValue(value) - minValue;
+    }
+
+    private double FromNativeValue(double value)
+    {
+        return ClampValue(minValue + value);
+    }
+
+    private double GetNativeMaxValue()
+    {
+        double range = maxValue - minValue;
+        return range > 0.0 ? range : 1.0;
+    }
+
+    private double ClampValue(double value)
+    {
+        return Math.Clamp(value, minValue, maxValue);
     }
 }
 
