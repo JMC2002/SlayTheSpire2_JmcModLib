@@ -241,7 +241,7 @@
         </member>
         <member name="M:JmcModLib.Config.UI.JmcHotkeyManager.Init">
             <summary>
-            初始化热键系统。通常由 <c>UseConfig()</c> 自动调用，子 MOD 一般不需要手动调用。
+            初始化热键系统。通常由 <see cref="T:JmcModLib.Core.ModRegistry"/> 注册流程和配置扫描自动触发，子 MOD 一般不需要手动调用。
             </summary>
         </member>
         <member name="M:JmcModLib.Config.UI.JmcHotkeyManager.Register(System.String,System.Func{JmcModLib.Config.UI.JmcKeyBinding},System.Action,System.Boolean,System.Boolean,System.Boolean,System.UInt64,System.Reflection.Assembly)">
@@ -544,10 +544,359 @@
             Handles a discovered attribute on a reflected accessor.
             </summary>
         </member>
+        <member name="T:JmcModLib.Core.ModContext">
+            <summary>
+            描述一个已注册 MOD 的程序集、标识、显示名、版本和注册状态。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Core.ModContext.Assembly">
+            <summary>
+            当前 MOD 对应的托管程序集。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Core.ModContext.ModId">
+            <summary>
+            MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Core.ModContext.DisplayName">
+            <summary>
+            用于日志和设置界面显示的名称。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Core.ModContext.Version">
+            <summary>
+            当前注册上下文记录的 MOD 版本号。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Core.ModContext.IsCompleted">
+            <summary>
+            是否已经调用 <see cref="M:JmcModLib.Core.RegistryBuilder.Done"/> 完成注册。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Core.ModContext.LoggerContext">
+            <summary>
+            传给 STS2 原生日志器的上下文名称。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Core.ModContext.Tag">
+            <summary>
+            常用于日志文本的短标签，格式类似 <c>[MyMod v1.0.0]</c>。
+            </summary>
+        </member>
         <member name="T:JmcModLib.Core.ModRegistry">
             <summary>
-            Lightweight assembly-to-mod context registry for STS2 mods.
+            维护 STS2 子 MOD 与托管程序集之间的注册上下文，并分发生命周期事件。
             </summary>
+            <remarks>
+            <para>
+            注册时会为目标程序集启用 JML 默认服务，包括按程序集隔离的 <see cref="T:JmcModLib.Utils.ModLogger"/>、
+            配置管理器和 Attribute 扫描管线。子 MOD 通常只需要在入口处调用一次
+            <see cref="M:JmcModLib.Core.ModRegistry.Register(System.Boolean,System.String,System.String,System.String,System.Reflection.Assembly)"/>，最后通过
+            <see cref="M:JmcModLib.Core.RegistryBuilder.Done"/> 完成扫描。
+            </para>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
+                .Done();
+            ]]></code>
+            </example>
+            </remarks>
+        </member>
+        <member name="E:JmcModLib.Core.ModRegistry.OnRegistered">
+            <summary>
+            当某个 MOD 完成注册并即将被 AttributeRouter 扫描时触发。
+            </summary>
+        </member>
+        <member name="E:JmcModLib.Core.ModRegistry.OnUnregistered">
+            <summary>
+            当某个 MOD 从注册表移除后触发。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Register(System.String,System.String,System.String,System.Reflection.Assembly)">
+            <summary>
+            注册一个 MOD 程序集，并返回可继续链式补充设置的构建器。
+            </summary>
+            <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
+            <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
+            <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
+            <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+            <returns>用于继续设置显示名、版本、手动按钮并最终调用 <see cref="M:JmcModLib.Core.RegistryBuilder.Done"/> 的构建器。</returns>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Register("BetterMap", "Better Map", "1.2.0")
+                .Done();
+            ]]></code>
+            </example>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Register(System.Boolean,System.String,System.String,System.String,System.Reflection.Assembly)">
+            <summary>
+            按是否延迟完成注册来注册 MOD。
+            </summary>
+            <param name="deferredCompletion">
+            为 <see langword="true"/> 时返回构建器，调用方需要自行调用 <see cref="M:JmcModLib.Core.RegistryBuilder.Done"/>；
+            为 <see langword="false"/> 时立即完成注册并返回 <see langword="null"/>。
+            </param>
+            <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
+            <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
+            <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
+            <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+            <returns>延迟完成时返回构建器；立即完成时返回 <see langword="null"/>。</returns>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
+                .RegisterButton("重载配置", ReloadConfig, "重载")
+                .Done();
+            ]]></code>
+            </example>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Register(System.Boolean,System.Object,System.String,System.String,System.Reflection.Assembly)">
+            <summary>
+            从对象形式的元数据中读取 MOD 标识、显示名和版本并完成注册。
+            </summary>
+            <param name="deferredCompletion">
+            为 <see langword="true"/> 时返回构建器；为 <see langword="false"/> 时立即完成注册。
+            </param>
+            <param name="modInfo">
+            可包含 <c>id</c>/<c>Id</c>/<c>modId</c>/<c>ModId</c>、
+            <c>displayName</c>/<c>DisplayName</c>/<c>name</c>/<c>Name</c>、
+            <c>version</c>/<c>Version</c> 字段或属性的元数据对象。
+            </param>
+            <param name="displayName">显式显示名称，优先级高于 <paramref name="modInfo"/>。</param>
+            <param name="version">显式版本号，优先级高于 <paramref name="modInfo"/>。</param>
+            <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+            <returns>延迟完成时返回构建器；立即完成时返回 <see langword="null"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Init``1(System.String,System.String,System.String)">
+            <summary>
+            使用类型 <typeparamref name="T"/> 所在程序集初始化注册上下文。
+            </summary>
+            <typeparam name="T">位于目标 MOD 程序集中的任意类型，常用入口 <c>MainFile</c>。</typeparam>
+            <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
+            <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
+            <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
+            <returns>用于继续设置并完成注册的构建器。</returns>
+            <remarks>
+            该方法承接旧版独立启动包装的 <c>Init&lt;T&gt;</c> 用法，但入口统一在 <see cref="T:JmcModLib.Core.ModRegistry"/> 下。
+            </remarks>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Init<MainFile>(VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)
+                .Done();
+            ]]></code>
+            </example>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Init(System.Reflection.Assembly,System.String,System.String,System.String)">
+            <summary>
+            使用指定程序集初始化注册上下文。
+            </summary>
+            <param name="assembly">目标 MOD 程序集。</param>
+            <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
+            <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
+            <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
+            <returns>用于继续设置并完成注册的构建器。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Init``1">
+            <summary>
+            使用类型 <typeparamref name="T"/> 所在程序集初始化注册上下文，并从程序集名称推断 MOD 标识。
+            </summary>
+            <typeparam name="T">位于目标 MOD 程序集中的任意类型，常用入口 <c>MainFile</c>。</typeparam>
+            <returns>用于继续设置并完成注册的构建器。</returns>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Init<MainFile>()
+                .Done();
+            ]]></code>
+            </example>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Register``1(System.String,System.String,System.String)">
+            <summary>
+            使用类型 <typeparamref name="T"/> 所在程序集注册 MOD。
+            </summary>
+            <typeparam name="T">位于目标 MOD 程序集中的任意类型，常用入口 <c>MainFile</c>。</typeparam>
+            <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
+            <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
+            <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
+            <returns>用于继续设置并完成注册的构建器。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Register``1(System.Boolean,System.String,System.String,System.String)">
+            <summary>
+            使用类型 <typeparamref name="T"/> 所在程序集，并按是否延迟完成来注册 MOD。
+            </summary>
+            <typeparam name="T">位于目标 MOD 程序集中的任意类型，常用入口 <c>MainFile</c>。</typeparam>
+            <param name="deferredCompletion">是否延迟到调用方显式执行 <see cref="M:JmcModLib.Core.RegistryBuilder.Done"/>。</param>
+            <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
+            <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
+            <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
+            <returns>延迟完成时返回构建器；立即完成时返回 <see langword="null"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.IsRegistered(System.Reflection.Assembly)">
+            <summary>
+            判断指定程序集是否已经注册。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>已注册时返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.TryGetContext(JmcModLib.Core.ModContext@,System.Reflection.Assembly)">
+            <summary>
+            尝试读取指定程序集的 MOD 上下文。
+            </summary>
+            <param name="context">成功时返回已注册的上下文。</param>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>存在上下文时返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.GetContext(System.Reflection.Assembly)">
+            <summary>
+            获取指定程序集的 MOD 上下文。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>已注册时返回上下文；否则返回 <see langword="null"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.GetModId(System.Reflection.Assembly)">
+            <summary>
+            获取指定程序集的 MOD 标识；未注册时回退到程序集名称。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>MOD 标识。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.GetDisplayName(System.Reflection.Assembly)">
+            <summary>
+            获取指定程序集的显示名称；未注册时回退到程序集名称。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>显示名称。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.GetVersion(System.Reflection.Assembly)">
+            <summary>
+            获取指定程序集的版本号；未注册时回退到程序集版本。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>版本号字符串。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.GetTag(System.Reflection.Assembly)">
+            <summary>
+            获取用于日志输出的标签。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>形如 <c>[DisplayName v1.0.0]</c> 的标签。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.ModRegistry.Unregister(System.Reflection.Assembly)">
+            <summary>
+            注销指定程序集的 MOD 上下文，并清理 JML 持有的日志、配置与热键状态。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>成功移除上下文时返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="T:JmcModLib.Core.RegistryBuilder">
+            <summary>
+            表示一次 MOD 注册过程中的链式补充设置。
+            </summary>
+            <remarks>
+            <para>
+            <see cref="M:JmcModLib.Core.ModRegistry.Register(System.String,System.String,System.String,System.Reflection.Assembly)"/> 会自动启用默认日志、
+            配置管理和 Attribute 扫描服务；此构建器只负责补充显示名、版本、自定义存储和手动按钮等注册期信息。
+            所有补充设置完成后必须调用 <see cref="M:JmcModLib.Core.RegistryBuilder.Done"/>，否则 Attribute 标记的配置、按钮和热键不会被扫描。
+            </para>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
+                .RegisterButton("重载配置", ReloadConfig, "重载")
+                .Done();
+            ]]></code>
+            </example>
+            </remarks>
+        </member>
+        <member name="M:JmcModLib.Core.RegistryBuilder.WithDisplayName(System.String)">
+            <summary>
+            覆盖当前注册上下文中的显示名称。
+            </summary>
+            <param name="displayName">新的显示名称；空白值会被忽略。</param>
+            <returns>当前构建器，用于继续链式调用。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.RegistryBuilder.WithVersion(System.String)">
+            <summary>
+            覆盖当前注册上下文中的版本号。
+            </summary>
+            <param name="version">新的版本号；空白值会被忽略。</param>
+            <returns>当前构建器，用于继续链式调用。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.RegistryBuilder.WithConfigStorage(JmcModLib.Config.Storage.IConfigStorage)">
+            <summary>
+            为当前 MOD 设置自定义配置存储。
+            </summary>
+            <param name="storage">配置存储实现。</param>
+            <returns>当前构建器，用于继续链式调用。</returns>
+            <remarks>
+            需要在 <see cref="M:JmcModLib.Core.RegistryBuilder.Done"/> 之前调用，确保 Attribute 扫描创建配置项时能读取到自定义存储。
+            </remarks>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Register(true, VersionInfo.Name)?
+                .WithConfigStorage(new NewtonsoftConfigStorage(customRoot))
+                .Done();
+            ]]></code>
+            </example>
+        </member>
+        <member name="M:JmcModLib.Core.RegistryBuilder.RegisterButton(System.String@,System.String,System.Action,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Int32,JmcModLib.Config.UI.UIButtonColor)">
+            <summary>
+            手动向当前 MOD 的设置界面注册一个按钮项，并返回生成的配置键。
+            </summary>
+            <param name="key">输出生成的配置键，可用于后续查询。</param>
+            <param name="description">按钮项的显示名称或描述文本。</param>
+            <param name="action">点击按钮时执行的动作。</param>
+            <param name="buttonText">按钮上的文本。</param>
+            <param name="group">按钮所在设置分组。</param>
+            <param name="storageKey">持久化键；留空时由描述文本生成。</param>
+            <param name="helpText">悬停提示或帮助文本。</param>
+            <param name="locTable">本地化表名；留空时使用默认设置界面表。</param>
+            <param name="displayNameKey">显示名称本地化键。</param>
+            <param name="helpTextKey">帮助文本本地化键。</param>
+            <param name="buttonTextKey">按钮文本本地化键。</param>
+            <param name="groupKey">分组名称本地化键。</param>
+            <param name="order">同组内排序值，越小越靠前。</param>
+            <param name="color">按钮颜色风格。</param>
+            <returns>当前构建器，用于继续链式调用。</returns>
+            <example>
+            <code><![CDATA[
+            ModRegistry.Register(true, VersionInfo.Name)?
+                .RegisterButton(
+                    out string reloadKey,
+                    "重载配置",
+                    ReloadConfig,
+                    "重载",
+                    group: "调试",
+                    storageKey: "button.reload")
+                .Done();
+            ]]></code>
+            </example>
+        </member>
+        <member name="M:JmcModLib.Core.RegistryBuilder.RegisterButton(System.String,System.Action,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Int32,JmcModLib.Config.UI.UIButtonColor)">
+            <summary>
+            手动向当前 MOD 的设置界面注册一个按钮项。
+            </summary>
+            <param name="description">按钮项的显示名称或描述文本。</param>
+            <param name="action">点击按钮时执行的动作。</param>
+            <param name="buttonText">按钮上的文本。</param>
+            <param name="group">按钮所在设置分组。</param>
+            <param name="storageKey">持久化键；留空时由描述文本生成。</param>
+            <param name="helpText">悬停提示或帮助文本。</param>
+            <param name="locTable">本地化表名；留空时使用默认设置界面表。</param>
+            <param name="displayNameKey">显示名称本地化键。</param>
+            <param name="helpTextKey">帮助文本本地化键。</param>
+            <param name="buttonTextKey">按钮文本本地化键。</param>
+            <param name="groupKey">分组名称本地化键。</param>
+            <param name="order">同组内排序值，越小越靠前。</param>
+            <param name="color">按钮颜色风格。</param>
+            <returns>当前构建器，用于继续链式调用。</returns>
+        </member>
+        <member name="M:JmcModLib.Core.RegistryBuilder.Done">
+            <summary>
+            完成当前 MOD 的注册，并触发 Attribute 扫描。
+            </summary>
+            <returns>当前 MOD 的注册上下文。</returns>
+            <remarks>
+            方法可重复调用；第一次调用会触发 <see cref="E:JmcModLib.Core.ModRegistry.OnRegistered"/>，后续调用只返回已有上下文。
+            </remarks>
         </member>
         <member name="T:JmcModLib.Input.GodotActionInputBackend">
             <summary>
@@ -1212,15 +1561,30 @@
              This helper only builds resource paths and LocString wrappers; no startup registration is required.
              </summary>
         </member>
-        <member name="T:JmcModLib.Utils.LogConfigUIFlags">
-            <summary>
-            Reserved hook point for future logger UI integration.
-            </summary>
-        </member>
         <member name="T:JmcModLib.Utils.ModLogger">
             <summary>
             Thin wrapper over STS2's logger with per-assembly configuration.
             </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.RegisterAssembly(System.Reflection.Assembly,MegaCrit.Sts2.Core.Logging.LogLevel,JmcModLib.Utils.LogPrefixFlags,System.Boolean,MegaCrit.Sts2.Core.Logging.LogType,System.Boolean)">
+            <summary>
+            为指定程序集注册或更新日志配置，并创建按程序集隔离的原生日志器。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <param name="minimumLevel">该程序集允许输出的最低日志等级。</param>
+            <param name="prefixFlags">日志前缀格式。</param>
+            <param name="throwOnFatal">调用 <see cref="M:JmcModLib.Utils.ModLogger.Fatal(System.Exception,System.String,System.Reflection.Assembly)"/> 时是否重新抛出异常。</param>
+            <param name="logType">传给 STS2 原生日志系统的日志类型。</param>
+            <param name="includeExceptionDetails">输出异常时是否包含完整异常详情。</param>
+            <remarks>
+            子 MOD 入口通常不需要手动调用本方法，<see cref="M:JmcModLib.Core.ModRegistry.Register(System.String,System.String,System.String,System.Reflection.Assembly)"/>
+            和相关重载会自动注册默认日志配置。需要覆盖日志等级或格式时再显式调用。
+            </remarks>
+            <example>
+            <code><![CDATA[
+            ModLogger.RegisterAssembly(minimumLevel: LogLevel.Debug);
+            ]]></code>
+            </example>
         </member>
         <member name="T:ExprHelper">
             <summary>

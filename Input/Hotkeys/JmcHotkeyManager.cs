@@ -29,7 +29,7 @@ public static class JmcHotkeyManager
     public static bool IsInitialized => Volatile.Read(ref initialized) == 1;
 
     /// <summary>
-    /// 初始化热键系统。通常由 <c>UseConfig()</c> 自动调用，子 MOD 一般不需要手动调用。
+    /// 初始化热键系统。通常由 <see cref="ModRegistry"/> 注册流程和配置扫描自动触发，子 MOD 一般不需要手动调用。
     /// </summary>
     public static void Init()
     {

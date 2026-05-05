@@ -11,8 +11,6 @@ public partial class MainFile : Node
     public static void Initialize()
     {
         ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
-            .RegisterLogger(uIFlags: LogConfigUIFlags.All)
-            .UseConfig()
             .Done();
 
         ModLogger.Info("======================================");

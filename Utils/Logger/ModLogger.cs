@@ -57,14 +57,31 @@ public static partial class ModLogger
 
     public static bool DefaultIncludeExceptionDetails { get; set; } = true;
 
+    /// <summary>
+    /// 为指定程序集注册或更新日志配置，并创建按程序集隔离的原生日志器。
+    /// </summary>
+    /// <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+    /// <param name="minimumLevel">该程序集允许输出的最低日志等级。</param>
+    /// <param name="prefixFlags">日志前缀格式。</param>
+    /// <param name="throwOnFatal">调用 <see cref="Fatal(Exception, string?, Assembly?)"/> 时是否重新抛出异常。</param>
+    /// <param name="logType">传给 STS2 原生日志系统的日志类型。</param>
+    /// <param name="includeExceptionDetails">输出异常时是否包含完整异常详情。</param>
+    /// <remarks>
+    /// 子 MOD 入口通常不需要手动调用本方法，<see cref="ModRegistry.Register(string, string?, string?, Assembly?)"/>
+    /// 和相关重载会自动注册默认日志配置。需要覆盖日志等级或格式时再显式调用。
+    /// </remarks>
+    /// <example>
+    /// <code><![CDATA[
+    /// ModLogger.RegisterAssembly(minimumLevel: LogLevel.Debug);
+    /// ]]></code>
+    /// </example>
     public static void RegisterAssembly(
         Assembly? assembly = null,
         LogLevel minimumLevel = LogLevel.Info,
         LogPrefixFlags prefixFlags = LogPrefixFlags.Default,
         bool throwOnFatal = true,
         LogType logType = LogType.Generic,
-        bool includeExceptionDetails = true,
-        LogConfigUIFlags uiFlags = LogConfigUIFlags.None)
+        bool includeExceptionDetails = true)
     {
         assembly = ResolveAssembly(assembly);
         AssemblyLogConfiguration configuration = Configurations.GetOrAdd(assembly, _ => CreateDefaultConfiguration());
@@ -74,7 +91,6 @@ public static partial class ModLogger
         configuration.LogType = logType;
         configuration.IncludeExceptionDetails = includeExceptionDetails;
 
-        BuildLoggerUI.BuildUI(assembly, uiFlags);
         _ = GetLogger(assembly);
     }
 
