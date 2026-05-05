@@ -1,6 +1,6 @@
 # JmcModLib STS2 Interface Guide
 
-版本基准：JmcModLib 1.0.80
+版本基准：JmcModLib 1.0.84
 
 本文档面向使用 JmcModLib 开发《Slay the Spire 2》子 MOD 的场景，重点说明稳定入口、推荐写法、配置 UI Attribute、日志、热键、本地化、存储与扩展接口。
 
@@ -959,6 +959,18 @@ public static JmcKeyBinding OpenPanelBinding = new(
 `Godot.Key` 只支持键盘；如果 `allowController: true`，字段类型必须使用 `JmcKeyBinding`。
 
 ## 按钮与热键
+
+### 输入模块文件结构
+
+从 `1.0.84` 开始，JML 的热键相关源文件物理上移动到顶层 `Input/Hotkeys/`，后续 Steam Input 与更多输入后端会放在 `Input/Backends/` 和 `Input/Steam/` 下。
+
+这只是内部结构整理，不改变子 MOD 调用方式：
+
+```csharp
+using JmcModLib.Config.UI;
+```
+
+`[UIHotkey]`、`[JmcHotkey]`、`JmcKeyBinding`、`JmcHotkeyManager` 仍然保持在 `JmcModLib.Config.UI` 命名空间。当前版本没有写入 Steam Input manifest，也没有要求子 MOD 迁移到新的 `JmcModLib.Input` 命名空间。
 
 ### UIButton
 

@@ -11,7 +11,7 @@ using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 namespace JmcModLib.Config.UI;
 
 /// <summary>
-/// Central runtime hotkey dispatcher for mod-owned configurable key bindings.
+/// JML 运行时热键分发器，用于处理 MOD 自有的可配置热键。
 /// </summary>
 public static class JmcHotkeyManager
 {
@@ -22,8 +22,14 @@ public static class JmcHotkeyManager
     private static bool installScheduled;
     private static int initialized;
 
+    /// <summary>
+    /// 热键系统是否已经初始化。
+    /// </summary>
     public static bool IsInitialized => Volatile.Read(ref initialized) == 1;
 
+    /// <summary>
+    /// 初始化热键系统。通常由 <c>UseConfig()</c> 自动调用，子 MOD 一般不需要手动调用。
+    /// </summary>
     public static void Init()
     {
         if (Interlocked.Exchange(ref initialized, 1) == 1)
@@ -34,6 +40,17 @@ public static class JmcHotkeyManager
         ModRegistry.OnUnregistered += OnModUnregistered;
     }
 
+    /// <summary>
+    /// 注册一个运行时热键，并通过 <see cref="JmcKeyBinding"/> 动态读取当前绑定值。
+    /// </summary>
+    /// <param name="key">热键注册键，同一 MOD 内应保持唯一。</param>
+    /// <param name="bindingGetter">用于读取当前热键绑定值的委托。</param>
+    /// <param name="action">热键触发时执行的动作。</param>
+    /// <param name="consumeInput">触发后是否吃掉本次输入。</param>
+    /// <param name="exactModifiers">是否要求键盘修饰键完全一致。</param>
+    /// <param name="allowEcho">是否允许键盘 Echo 输入触发。</param>
+    /// <param name="debounceMs">防抖时间，单位为毫秒。</param>
+    /// <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
     public static void Register(
         string key,
         Func<JmcKeyBinding> bindingGetter,
@@ -57,6 +74,17 @@ public static class JmcHotkeyManager
             new HotkeyOptions(consumeInput, exactModifiers, allowEcho, debounceMs));
     }
 
+    /// <summary>
+    /// 注册一个仅使用键盘按键的运行时热键。
+    /// </summary>
+    /// <param name="key">热键注册键，同一 MOD 内应保持唯一。</param>
+    /// <param name="keyGetter">用于读取当前键盘按键的委托。</param>
+    /// <param name="action">热键触发时执行的动作。</param>
+    /// <param name="consumeInput">触发后是否吃掉本次输入。</param>
+    /// <param name="exactModifiers">是否要求键盘修饰键完全一致。</param>
+    /// <param name="allowEcho">是否允许键盘 Echo 输入触发。</param>
+    /// <param name="debounceMs">防抖时间，单位为毫秒。</param>
+    /// <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
     public static void Register(
         string key,
         Func<Key> keyGetter,
@@ -79,6 +107,12 @@ public static class JmcHotkeyManager
             assembly);
     }
 
+    /// <summary>
+    /// 注销当前 MOD 中指定注册键的运行时热键。
+    /// </summary>
+    /// <param name="key">热键注册键。</param>
+    /// <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+    /// <returns>如果成功移除了热键，返回 <see langword="true"/>。</returns>
     public static bool Unregister(string key, Assembly? assembly = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -89,6 +123,10 @@ public static class JmcHotkeyManager
         }
     }
 
+    /// <summary>
+    /// 注销指定程序集下的所有运行时热键。
+    /// </summary>
+    /// <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
     public static void UnregisterAssembly(Assembly? assembly = null)
     {
         Assembly resolvedAssembly = AssemblyResolver.Resolve(assembly, typeof(JmcHotkeyManager));
@@ -296,6 +334,13 @@ public static class JmcHotkeyManager
     }
 }
 
+/// <summary>
+/// 运行时热键的触发选项。
+/// </summary>
+/// <param name="ConsumeInput">触发后是否吃掉本次输入。</param>
+/// <param name="ExactModifiers">是否要求键盘修饰键完全一致。</param>
+/// <param name="AllowEcho">是否允许键盘 Echo 输入触发。</param>
+/// <param name="DebounceMs">防抖时间，单位为毫秒。</param>
 public readonly record struct HotkeyOptions(
     bool ConsumeInput = true,
     bool ExactModifiers = true,
