@@ -1,6 +1,6 @@
 # JmcModLib STS2 Interface Guide
 
-版本基准：JmcModLib 1.0.95
+版本基准：JmcModLib 1.0.96
 
 本文档面向使用 JmcModLib 开发《Slay the Spire 2》子 MOD 的场景，重点说明稳定入口、推荐写法、配置 UI Attribute、日志、热键、本地化、存储与扩展接口。
 
@@ -8,9 +8,11 @@ JmcModLib 的设计目标是让不同 C# 游戏的前置库尽量共享一套接
 
 从 `1.0.90` 开始，JML 发布目录会随 `JmcModLib.Runtime.dll` 一起生成 `JmcModLib.Runtime.xml`。子 MOD 通过 `JmcModLib.Sts2.props` 或直接引用 Runtime DLL 时，VS 可以读取该 XML 文档并显示 JML 公开 API 的 IntelliSense 注释。
 
+如果你是第一次接入 JML，请先读 [快速入门](JmcModLib_STS2_QuickStart.md)。本文是参考手册，保留完整符号、参数、限制和扩展说明。
+
 ## 目录
 
-- 快速开始
+- 快速入门：[JmcModLib_STS2_QuickStart.md](JmcModLib_STS2_QuickStart.md)
 - 注册入口
 - 日志系统
 - 配置系统
@@ -21,12 +23,12 @@ JmcModLib 的设计目标是让不同 C# 游戏的前置库尽量共享一套接
 - 配置存储
 - 反射与访问器
 - 运行时信息
-- 工作流程图
-- UML 结构图
-- 内部文件结构
+- 架构参考：工作流程图
+- 架构参考：UML 结构图
+- 架构参考：内部文件结构
 - 常见模式与建议
 
-## 工作流程图
+## 架构参考：工作流程图
 
 下面这张图描述的是 STS2 先加载 JmcModLib Bootstrap、Bootstrap 按本地依赖表挂载 Runtime 和第三方 DLL 后，子 MOD 接入 JmcModLib 完成注册、扫描、配置 UI、热键、日志与存储实际生效的整体流程。
 
@@ -95,7 +97,7 @@ flowchart TD
 - 启动线：`Register<MainFile>() -> Attribute 扫描 -> 注册配置/按钮/热键`，或 `Register<MainFile>(true) -> Done -> Attribute 扫描`。
 - 运行线：`设置 UI 修改配置 -> 写回字段并保存`，以及 `输入中继捕获热键 -> 调用绑定方法`。
 
-## UML 结构图
+## 架构参考：UML 结构图
 
 下面的 UML 类图只覆盖子 MOD 最常接触的稳定接口，以及它们背后的核心协作关系；游戏 UI 桥接类、原生控件克隆器等内部实现没有放进图里，避免主线过载。
 
@@ -407,7 +409,7 @@ classDiagram
     ModLogger --> ModContext : logger context
 ```
 
-## 内部文件结构
+## 架构参考：内部文件结构
 
 JML 的内部实现已经按职责拆分到多个子目录。这个调整只影响 JML 内部源码组织，不改变子 MOD 的公开调用方式；`[UIToggle]`、`[UIHotkey]`、`JmcKeyBinding`、`UIButtonColor` 等公开类型仍然保持在原有命名空间。
 
@@ -437,40 +439,17 @@ using JmcModLib.Config.UI;
 
 不要依赖这些物理目录中的 internal 类型；它们会继续按 JML 内部实现需要调整。
 
-## 快速开始
+## 快速入门
 
-### 最小入口
+新用户请先阅读 [JmcModLib_STS2_QuickStart.md](JmcModLib_STS2_QuickStart.md)。快速入门只展示推荐用法：能自动推断就自动推断。
 
-```csharp
-using Godot;
-using JmcModLib.Config;
-using JmcModLib.Config.UI;
-using JmcModLib.Utils;
-using MegaCrit.Sts2.Core.Modding;
-
-namespace MyMod;
-
-[ModInitializer(nameof(Initialize))]
-public partial class MainFile : Node
-{
-    public static void Initialize()
-    {
-        ModRegistry.Register<MainFile>();
-
-        ModLogger.Info("MyMod initialized.");
-    }
-}
-```
-
-### 推荐入口风格
-
-推荐子 MOD 使用 `ModRegistry.Register<MainFile>();` 作为入口。`MainFile` 用于定位调用方程序集，JML 会自动从 STS2 manifest/assembly 元数据推断 MOD 标识、显示名和版本，并立即完成 Attribute 扫描。
+本文后续保留完整 API 参考。普通子 MOD 的入口仍推荐：
 
 ```csharp
 ModRegistry.Register<MainFile>();
 ```
 
-需要在扫描前补充注册按钮或自定义配置存储时，使用同名泛型流式入口：
+需要在扫描前补充按钮或自定义存储时，使用：
 
 ```csharp
 ModRegistry.Register<MainFile>(true)?
@@ -579,7 +558,11 @@ Done()
 
 JML 日志是对 STS2 原生 `MegaCrit.Sts2.Core.Logging.Logger` 的按程序集封装。子 MOD 可以直接调用 `ModLogger`，不需要自己包一层 logger。
 
-### 日志初始化
+### 自动初始化与低层入口
+
+推荐用法是不手动初始化日志。`ModRegistry.Register<MainFile>()` 会为当前 MOD 自动注册默认日志配置。
+
+只有需要覆盖最低等级、日志类型或异常输出格式时，才显式调用低层入口：
 
 ```csharp
 ModLogger.RegisterAssembly(
@@ -591,7 +574,7 @@ ModLogger.RegisterAssembly(
     includeExceptionDetails: true)
 ```
 
-`ModRegistry.Register` 会自动为当前 MOD 注册默认日志配置。只有需要覆盖最低等级、日志类型或异常输出格式时，才建议显式调用 `ModLogger.RegisterAssembly(...)`。
+显式调用后会覆盖当前程序集的日志配置。
 
 ### 输出日志
 
