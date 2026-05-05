@@ -1,6 +1,6 @@
 # JmcModLib STS2 API 文档
 
-源码基准：JML `1.0.98`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
+源码基准：JML `1.0.99`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
 
 ```csharp
 using JmcModLib.Core;
@@ -75,8 +75,8 @@ flowchart TD
 | 成员 | 说明 |
 |---|---|
 | `const string Name = "JmcModLib"` | JML 名称 |
-| `const string Version = "1.0.98"` | JML 版本 |
-| `string Tag` | `"[JmcModLib v1.0.98]"` |
+| `const string Version = "1.0.99"` | JML 版本 |
+| `string Tag` | `"[JmcModLib v1.0.99]"` |
 | `GetName(Assembly? assembly = null)` | 获取指定程序集名称，JML 自身返回固定名称 |
 | `GetVersion(Assembly? assembly = null)` | 获取指定程序集版本，JML 自身返回固定版本 |
 | `GetTag(Assembly? assembly = null)` | 生成日志标签 |
@@ -706,15 +706,16 @@ flowchart TD
     B --> C[创建 AssemblyLogConfiguration]
     C --> D[读取 ModRegistry LoggerContext]
     D --> E[MOD 调用 Debug/Info/Warn/Error/Fatal]
-    E --> F{level >= MinimumLevel?}
-    F -- no --> G[忽略]
-    F -- yes --> H[添加 Prefix / Exception Details]
-    H --> I[转发 STS2 Logger]
-    I --> J{Fatal && ThrowOnFatal?}
-    J -- yes --> K[抛出异常]
-    J -- no --> L[结束]
+    E --> F[添加 Prefix / Exception Details]
+    F --> G[转发 STS2 Logger]
+    G --> H[由 STS2 原生等级决定是否显示]
+    H --> I{Fatal && ThrowOnFatal?}
+    I -- yes --> J[抛出异常]
+    I -- no --> K[结束]
     B --> M[UnregisterAssembly 时清理]
 ```
+
+JML 不维护最低显示等级。需要调整日志显示时，使用 STS2 开发者控制台的原生命令，例如 `log Debug` 或 `log Generic Debug`。
 
 ### 9.2 类型与成员
 
@@ -734,7 +735,6 @@ public enum LogPrefixFlags
 
 | 属性 | 默认 |
 |---|---:|
-| `MinimumLevel` | `LogLevel.Info` |
 | `LogType` | `LogType.Generic` |
 | `PrefixFlags` | `LogPrefixFlags.Default` |
 | `ThrowOnFatal` | `true` |
@@ -744,7 +744,6 @@ public enum LogPrefixFlags
 
 ```csharp
 public readonly record struct LoggerSnapshot(
-    LogLevel MinimumLevel,
     LogType LogType,
     LogPrefixFlags PrefixFlags,
     bool ThrowOnFatal,
@@ -756,14 +755,12 @@ public readonly record struct LoggerSnapshot(
 
 | 成员 | 说明 |
 |---|---|
-| `DefaultLogLevel` | 默认 Info |
 | `DefaultLogType` | 默认 Generic |
 | `DefaultPrefixFlags` | 默认 Timestamp |
 | `DefaultThrowOnFatal` | 默认 true |
 | `DefaultIncludeExceptionDetails` | 默认 true |
-| `RegisterAssembly(Assembly? assembly = null, LogLevel minimumLevel = LogLevel.Info, LogPrefixFlags prefixFlags = LogPrefixFlags.Default, bool throwOnFatal = true, LogType logType = LogType.Generic, bool includeExceptionDetails = true)` | 注册 Assembly 日志配置 |
+| `RegisterAssembly(Assembly? assembly = null, LogPrefixFlags prefixFlags = LogPrefixFlags.Default, bool throwOnFatal = true, LogType logType = LogType.Generic, bool includeExceptionDetails = true)` | 注册 Assembly 日志配置 |
 | `UnregisterAssembly(Assembly? assembly = null)` | 清理日志配置 |
-| `GetLogLevel/SetLogLevel` | 读取/设置等级 |
 | `GetLogType/SetLogType` | 读取/设置 STS2 日志类型 |
 | `GetPrefixFlags/SetPrefixFlags` | 读取/设置前缀 |
 | `HasPrefixFlag/TogglePrefixFlag` | 检查/切换前缀 flag |

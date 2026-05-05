@@ -1544,30 +1544,253 @@
              This helper only builds resource paths and LocString wrappers; no startup registration is required.
              </summary>
         </member>
-        <member name="T:JmcModLib.Utils.ModLogger">
+        <member name="T:JmcModLib.Utils.LogPrefixFlags">
             <summary>
-            Thin wrapper over STS2's logger with per-assembly configuration.
+            控制 JML 日志前缀的附加内容。
             </summary>
         </member>
-        <member name="M:JmcModLib.Utils.ModLogger.RegisterAssembly(System.Reflection.Assembly,MegaCrit.Sts2.Core.Logging.LogLevel,JmcModLib.Utils.LogPrefixFlags,System.Boolean,MegaCrit.Sts2.Core.Logging.LogType,System.Boolean)">
+        <member name="F:JmcModLib.Utils.LogPrefixFlags.None">
+            <summary>
+            不添加额外前缀。
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Utils.LogPrefixFlags.Timestamp">
+            <summary>
+            在日志正文前添加当前本地时间。
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Utils.LogPrefixFlags.Default">
+            <summary>
+            默认前缀格式。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.AssemblyLogConfiguration">
+            <summary>
+            指定程序集的 JML 日志配置。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.AssemblyLogConfiguration.LogType">
+            <summary>
+            传给 STS2 原生日志系统的日志类型；显示等级由游戏原生 <c>log</c> 命令控制。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.AssemblyLogConfiguration.PrefixFlags">
+            <summary>
+            日志正文前附加的 JML 前缀格式。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.AssemblyLogConfiguration.ThrowOnFatal">
+            <summary>
+            调用 <see cref="M:JmcModLib.Utils.ModLogger.Fatal(System.Exception,System.String,System.Reflection.Assembly)"/> 时是否重新抛出异常。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.AssemblyLogConfiguration.IncludeExceptionDetails">
+            <summary>
+            记录异常时是否输出完整异常详情；关闭时仅输出异常消息。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.LoggerSnapshot">
+            <summary>
+            指定程序集当前日志配置的只读快照。
+            </summary>
+            <param name="LogType">传给 STS2 原生日志系统的日志类型。</param>
+            <param name="PrefixFlags">日志正文前附加的 JML 前缀格式。</param>
+            <param name="ThrowOnFatal">调用 Fatal 时是否重新抛出异常。</param>
+            <param name="IncludeExceptionDetails">记录异常时是否输出完整异常详情。</param>
+            <param name="Context">传给 STS2 原生日志器的上下文名称。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.LoggerSnapshot.#ctor(MegaCrit.Sts2.Core.Logging.LogType,JmcModLib.Utils.LogPrefixFlags,System.Boolean,System.Boolean,System.String)">
+            <summary>
+            指定程序集当前日志配置的只读快照。
+            </summary>
+            <param name="LogType">传给 STS2 原生日志系统的日志类型。</param>
+            <param name="PrefixFlags">日志正文前附加的 JML 前缀格式。</param>
+            <param name="ThrowOnFatal">调用 Fatal 时是否重新抛出异常。</param>
+            <param name="IncludeExceptionDetails">记录异常时是否输出完整异常详情。</param>
+            <param name="Context">传给 STS2 原生日志器的上下文名称。</param>
+        </member>
+        <member name="P:JmcModLib.Utils.LoggerSnapshot.LogType">
+            <summary>传给 STS2 原生日志系统的日志类型。</summary>
+        </member>
+        <member name="P:JmcModLib.Utils.LoggerSnapshot.PrefixFlags">
+            <summary>日志正文前附加的 JML 前缀格式。</summary>
+        </member>
+        <member name="P:JmcModLib.Utils.LoggerSnapshot.ThrowOnFatal">
+            <summary>调用 Fatal 时是否重新抛出异常。</summary>
+        </member>
+        <member name="P:JmcModLib.Utils.LoggerSnapshot.IncludeExceptionDetails">
+            <summary>记录异常时是否输出完整异常详情。</summary>
+        </member>
+        <member name="P:JmcModLib.Utils.LoggerSnapshot.Context">
+            <summary>传给 STS2 原生日志器的上下文名称。</summary>
+        </member>
+        <member name="T:JmcModLib.Utils.ModLogger">
+            <summary>
+            JML 对 STS2 原生日志器的轻量封装，按程序集隔离日志上下文、类型和格式。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.ModLogger.DefaultLogType">
+            <summary>
+            新程序集日志配置默认使用的 STS2 日志类型。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.ModLogger.DefaultPrefixFlags">
+            <summary>
+            新程序集日志配置默认使用的前缀格式。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.ModLogger.DefaultThrowOnFatal">
+            <summary>
+            新程序集日志配置默认的 Fatal 重新抛出行为。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.ModLogger.DefaultIncludeExceptionDetails">
+            <summary>
+            新程序集日志配置默认的异常详情输出行为。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.RegisterAssembly(System.Reflection.Assembly,JmcModLib.Utils.LogPrefixFlags,System.Boolean,MegaCrit.Sts2.Core.Logging.LogType,System.Boolean)">
             <summary>
             为指定程序集注册或更新日志配置，并创建按程序集隔离的原生日志器。
             </summary>
             <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
-            <param name="minimumLevel">该程序集允许输出的最低日志等级。</param>
             <param name="prefixFlags">日志前缀格式。</param>
             <param name="throwOnFatal">调用 <see cref="M:JmcModLib.Utils.ModLogger.Fatal(System.Exception,System.String,System.Reflection.Assembly)"/> 时是否重新抛出异常。</param>
             <param name="logType">传给 STS2 原生日志系统的日志类型。</param>
             <param name="includeExceptionDetails">输出异常时是否包含完整异常详情。</param>
             <remarks>
             子 MOD 入口通常不需要手动调用本方法，<see cref="M:JmcModLib.Core.ModRegistry.Register(System.String,System.String,System.String,System.Reflection.Assembly)"/>
-            和相关重载会自动注册默认日志配置。需要覆盖日志等级或格式时再显式调用。
+            和相关重载会自动注册默认日志配置。需要覆盖日志类型或格式时再显式调用。
+            日志显示等级由游戏原生 <c>log</c> 命令控制。
             </remarks>
             <example>
             <code><![CDATA[
-            ModLogger.RegisterAssembly(minimumLevel: LogLevel.Debug);
+            ModLogger.RegisterAssembly(logType: LogType.Generic);
             ]]></code>
             </example>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.UnregisterAssembly(System.Reflection.Assembly)">
+            <summary>
+            清理指定程序集的日志配置和已创建的原生日志器。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.GetLogType(System.Reflection.Assembly)">
+            <summary>
+            获取指定程序集当前使用的 STS2 日志类型。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>当前日志类型。</returns>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.SetLogType(MegaCrit.Sts2.Core.Logging.LogType,System.Reflection.Assembly)">
+            <summary>
+            设置指定程序集使用的 STS2 日志类型。
+            </summary>
+            <param name="logType">新的日志类型。</param>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.GetPrefixFlags(System.Reflection.Assembly)">
+            <summary>
+            获取指定程序集当前使用的日志前缀格式。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>当前前缀格式。</returns>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.SetPrefixFlags(JmcModLib.Utils.LogPrefixFlags,System.Reflection.Assembly)">
+            <summary>
+            设置指定程序集使用的日志前缀格式。
+            </summary>
+            <param name="flags">新的前缀格式。</param>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.HasPrefixFlag(JmcModLib.Utils.LogPrefixFlags,System.Reflection.Assembly)">
+            <summary>
+            检查指定程序集的日志前缀是否包含某个标记。
+            </summary>
+            <param name="flag">需要检查的前缀标记。</param>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>包含该标记时返回 <c>true</c>。</returns>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.TogglePrefixFlag(JmcModLib.Utils.LogPrefixFlags,System.Reflection.Assembly)">
+            <summary>
+            切换指定程序集的某个日志前缀标记。
+            </summary>
+            <param name="flag">需要切换的前缀标记。</param>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.GetSnapshot(System.Reflection.Assembly)">
+            <summary>
+            获取指定程序集当前日志配置的快照。
+            </summary>
+            <param name="assembly">目标程序集；留空时自动解析调用方程序集。</param>
+            <returns>当前配置快照。</returns>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Load(System.String,System.Reflection.Assembly)">
+            <summary>
+            输出 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.Load"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Trace(System.String,System.Reflection.Assembly)">
+            <summary>
+            输出 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.VeryDebug"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Debug(System.String,System.Reflection.Assembly)">
+            <summary>
+            输出 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.Debug"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Info(System.String,System.Reflection.Assembly)">
+            <summary>
+            输出 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.Info"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Warn(System.String,System.Reflection.Assembly)">
+            <summary>
+            输出 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.Warn"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Warn(System.String,System.Exception,System.Reflection.Assembly)">
+            <summary>
+            输出带异常信息的 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.Warn"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="exception">需要记录的异常。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Error(System.String,System.Reflection.Assembly)">
+            <summary>
+            输出 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.Error"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Error(System.String,System.Exception,System.Reflection.Assembly)">
+            <summary>
+            输出带异常信息的 STS2 <see cref="F:MegaCrit.Sts2.Core.Logging.LogLevel.Error"/> 等级日志。
+            </summary>
+            <param name="message">日志正文。</param>
+            <param name="exception">需要记录的异常。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Utils.ModLogger.Fatal(System.Exception,System.String,System.Reflection.Assembly)">
+            <summary>
+            输出错误日志，并按配置决定是否重新抛出异常。
+            </summary>
+            <param name="exception">需要记录的异常。</param>
+            <param name="message">可选日志正文；为空时使用默认 Fatal 文本。</param>
+            <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
+            <exception cref="T:System.Exception">当当前程序集配置启用 ThrowOnFatal 时重新抛出 <paramref name="exception"/>。</exception>
         </member>
         <member name="T:ExprHelper">
             <summary>

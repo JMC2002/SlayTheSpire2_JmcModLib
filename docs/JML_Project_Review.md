@@ -1,6 +1,6 @@
 # JmcModLib STS2 项目审阅报告
 
-源码基准：`JmcModLib_STS2`，JML 本体版本以源码 `Core/VersionInfo.cs` 与发布 manifest 为准：`1.0.98`。现有 `docs/` 中的文档标注为 `1.0.96`，存在版本漂移。本报告主要根据源码、项目文件与发布目录反推，不把既有文档作为事实来源。
+源码基准：`JmcModLib_STS2`，JML 本体版本以源码 `Core/VersionInfo.cs` 与发布 manifest 为准：`1.0.99`。现有 `docs/` 中的文档标注为 `1.0.96`，存在版本漂移。本报告主要根据源码、项目文件与发布目录反推，不把既有文档作为事实来源。
 
 分析范围包括 JML 本体、Bootstrap、发布 props/runtime 配置、Demo 的接入方式。未在沙盒内执行完整构建与游戏内运行验证，因为环境缺少 STS2/Godot 运行时 DLL 与本地 Steam/Godot 路径；以下结论是静态源码审阅结论。
 
@@ -213,7 +213,7 @@ Bootstrap/Runtime 双层是合理的。发布目录中 `JmcModLib.runtime.config
 2. **清理公共 API 可见性**。尤其是 `ConfigEntry` 构造入口与 `ExprHelper` 全局命名空间。
 3. **发布产物移出源码树**。减少历史包、旧 DLL、旧文档造成的误用。
 4. **为核心逻辑补测试**。至少覆盖配置转换/存储、Attribute 扫描、热键匹配、动态下拉、反射访问器。
-5. **文档版本绑定构建**。构建时从 `VersionInfo.Version` 或 manifest 生成文档版本，避免 `1.0.96`/`1.0.98` 漂移。
+5. **文档版本绑定构建**。构建时从 `VersionInfo.Version` 或 manifest 生成文档版本，避免文档与源码版本漂移。
 
 ### 中优先级
 
@@ -285,4 +285,4 @@ flowchart TD
 
 JML 已经具备作为 STS2 子 MOD 前置库的主体形态。继续演进时，应把重点从“增加功能”转向“稳定公共契约”：明确哪些类型是给子 MOD 用的，哪些只是内部实现；让默认参数尽量自动推导但不牺牲长期稳定 key；把配置写入、热键、UI bridge 这些高风险路径用测试固定下来；文档和 Demo 随版本自动更新。
 
-如果只做一轮最小改进，我建议按这个顺序：修复 `ConfigEntry.ApplyValue` 异常语义 → `ExprHelper` 命名空间与 public 可见性清理 → 发布产物移出源码树 → 新增核心单元测试 → 重新生成 `1.0.98` 文档。
+如果只做一轮最小改进，我建议按这个顺序：修复 `ConfigEntry.ApplyValue` 异常语义 → `ExprHelper` 命名空间与 public 可见性清理 → 发布产物移出源码树 → 新增核心单元测试 → 重新生成当前版本文档。

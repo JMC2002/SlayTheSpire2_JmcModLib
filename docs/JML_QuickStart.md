@@ -1,6 +1,6 @@
 # JmcModLib STS2 快速入门
 
-源码基准：JML `1.0.98`。本文按“默认参数尽量自动推导”的方式编写，适合子 MOD 作者快速接入。完整符号说明见 `JML_API_Reference.md`。
+源码基准：JML `1.0.99`。本文按“默认参数尽量自动推导”的方式编写，适合子 MOD 作者快速接入。完整符号说明见 `JML_API_Reference.md`。
 
 ---
 
@@ -336,10 +336,11 @@ catch (Exception ex)
 }
 ```
 
-默认日志等级是 `Info`，`Debug/Trace` 可能被过滤。需要临时调整：
+日志显示等级由 STS2 原生日志系统控制。需要调整最低显示等级时，在游戏开发者控制台使用原生命令：
 
-```csharp
-ModLogger.SetLogLevel(LogLevel.Debug);
+```text
+log Debug
+log Generic Debug
 ```
 
 共享工具库或 helper 中建议显式传 Assembly，避免调用栈推断到错误程序集：
