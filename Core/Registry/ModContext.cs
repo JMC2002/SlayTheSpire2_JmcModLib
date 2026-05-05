@@ -1,3 +1,4 @@
+// 文件用途：保存单个已注册子 MOD 的程序集、标识、显示名、版本与注册状态。
 using System.Reflection;
 
 namespace JmcModLib.Core;

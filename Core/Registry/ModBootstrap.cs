@@ -1,3 +1,4 @@
+// 文件用途：提供子 MOD 入口的简化初始化语法，内部转发到 ModRegistry。
 using System.Reflection;
 
 namespace JmcModLib.Core;

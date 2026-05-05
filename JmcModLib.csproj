@@ -35,7 +35,6 @@
   <ItemGroup>
     <Content Remove="JmcModLib\modPublish\JmcModLib.json" />
     <Compile Remove="Bootstrap\**\*.cs" />
-    <Compile Remove="Core\CardReplacer.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,3 +1,4 @@
+// 文件用途：封装 STS2 运行时 MOD/manifest 查询，帮助 JML 从游戏加载状态推断 MOD 信息。
 using JmcModLib.Reflection;
 using MegaCrit.Sts2.Core.Modding;
 using System.Collections;

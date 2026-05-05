@@ -1,3 +1,4 @@
+// 文件用途：提供注册后的链式配置入口，用于启用配置、按钮、日志等 JML 功能。
 using JmcModLib.Config;
 using JmcModLib.Config.Storage;
 using JmcModLib.Config.UI;

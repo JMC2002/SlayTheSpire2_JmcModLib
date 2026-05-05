@@ -1,3 +1,4 @@
+// 文件用途：定义 JmcModLib 自身的名称、版本号与程序集版本读取辅助方法。
 using System.Reflection;
 
 namespace JmcModLib.Core;
@@ -5,7 +6,7 @@ namespace JmcModLib.Core;
 public static class VersionInfo
 {
     public const string Name = "JmcModLib";
-    public const string Version = "1.0.91";
+    public const string Version = "1.0.92";
 
     public static string Tag => $"[{Name} v{Version}]";
 

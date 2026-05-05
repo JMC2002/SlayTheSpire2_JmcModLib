@@ -1,3 +1,4 @@
+// 文件用途：统一推断调用方程序集，避免各模块重复处理 Assembly 为空的情况。
 using System.Diagnostics;
 using System.Reflection;
 

@@ -1,6 +1,6 @@
 # JmcModLib STS2 Interface Guide
 
-版本基准：JmcModLib 1.0.89
+版本基准：JmcModLib 1.0.92
 
 本文档面向使用 JmcModLib 开发《Slay the Spire 2》子 MOD 的场景，重点说明稳定入口、推荐写法、配置 UI Attribute、日志、热键、本地化、存储与扩展接口。
 
@@ -431,9 +431,16 @@ classDiagram
 
 ## 内部文件结构
 
-JML 的设置 UI 实现已经按职责拆分到 `Config/UI` 下的多个子目录。这个调整只影响 JML 内部源码组织，不改变子 MOD 的公开调用方式；`[UIToggle]`、`[UIHotkey]`、`JmcKeyBinding`、`UIButtonColor` 等公开类型仍然保持在 `JmcModLib.Config.UI` 命名空间。
+JML 的内部实现已经按职责拆分到多个子目录。这个调整只影响 JML 内部源码组织，不改变子 MOD 的公开调用方式；`[UIToggle]`、`[UIHotkey]`、`JmcKeyBinding`、`UIButtonColor` 等公开类型仍然保持在原有命名空间。
 
-当前主要职责划分如下：
+`Core/` 当前主要职责划分如下：
+
+- `Registry/`：子 MOD 注册生命周期、注册上下文与链式配置入口。
+- `Runtime/`：从 STS2 运行时、manifest 与程序集推断 MOD 信息。
+- `AttributeRouting/`：扫描已注册 MOD 程序集中的 Attribute，并分发给配置、按钮、热键等处理器。
+- `VersionInfo.cs`：保留在 `Core` 根目录，用于定义 JML 自身名称与版本。
+
+`Config/UI/` 当前主要职责划分如下：
 
 - `Attributes/`：子 MOD 直接使用的配置 UI Attribute 与按钮颜色枚举。
 - `Options/`：下拉框等配置项的候选值解析。

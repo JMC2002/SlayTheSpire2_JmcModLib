@@ -1,3 +1,4 @@
+// 文件用途：扫描已注册 MOD 程序集中的 Attribute，并分发给对应处理器。
 using JmcModLib.Reflection;
 using System.Collections.Concurrent;
 using System.Reflection;
