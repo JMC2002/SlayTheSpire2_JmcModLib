@@ -302,7 +302,6 @@ classDiagram
         +Warn(message)
         +Error(message)
         +Fatal(exception, message)
-        +SetLogLevel(level)
         +GetSnapshot() LoggerSnapshot
     }
 
@@ -562,12 +561,11 @@ JML 日志是对 STS2 原生 `MegaCrit.Sts2.Core.Logging.Logger` 的按程序集
 
 推荐用法是不手动初始化日志。`ModRegistry.Register<MainFile>()` 会为当前 MOD 自动注册默认日志配置。
 
-只有需要覆盖最低等级、日志类型或异常输出格式时，才显式调用低层入口：
+只有需要覆盖日志类型或异常输出格式时，才显式调用低层入口。日志显示等级由 STS2 原生日志系统控制，可在开发者控制台使用 `log Debug` 或 `log Generic Debug` 调整：
 
 ```csharp
 ModLogger.RegisterAssembly(
     assembly: Assembly.GetExecutingAssembly(),
-    minimumLevel: LogLevel.Info,
     prefixFlags: LogPrefixFlags.Default,
     throwOnFatal: true,
     logType: LogType.Generic,
@@ -600,8 +598,6 @@ ModLogger.Info("message", typeof(MainFile).Assembly);
 ### 日志配置
 
 ```csharp
-ModLogger.GetLogLevel();
-ModLogger.SetLogLevel(LogLevel.Debug);
 ModLogger.GetLogType();
 ModLogger.SetLogType(LogType.Generic);
 ModLogger.GetPrefixFlags();
