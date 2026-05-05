@@ -1,0 +1,1334 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>JmcModLib</name>
+    </assembly>
+    <members>
+        <member name="T:JmcModLib.Config.ConfigAttribute">
+            <summary>
+            Marks a static field or property as a configuration entry.
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.ConfigAttribute.#ctor(System.String,System.String,System.String)">
+            <summary>
+            Marks a static field or property as a configuration entry.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.ConfigManager">
+            <summary>
+            Central registration and persistence layer for config entries.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.Entry.ConfigEntry">
+            <summary>
+            Base class for a single registered config entry.
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.Entry.ConfigEntry.#ctor(System.Reflection.Assembly,System.String,System.String,System.String,JmcModLib.Config.ConfigAttribute,JmcModLib.Config.UI.UIConfigAttribute)">
+            <summary>
+            Base class for a single registered config entry.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.Storage.JsonConfigStorage">
+            <summary>
+            Dependency-free JSON storage backend for mod configuration files.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.Storage.NewtonsoftConfigStorage">
+            <summary>
+            Newtonsoft.Json based storage backend for mod configuration files.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.UIButtonAttribute">
+            <summary>
+            Adds a button row to the in-game mod settings UI.
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.UI.UIButtonAttribute.#ctor(System.String,System.String,System.String)">
+            <summary>
+            Adds a button row to the in-game mod settings UI.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.UIConfigAttribute">
+            <summary>
+            Base metadata attribute for later in-game config UI bridging.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.UIKeybindAttribute">
+            <summary>
+            将 <see cref="T:Godot.Key"/> 或 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/> 配置项渲染为按键绑定控件。
+            </summary>
+            <param name="allowController">是否允许手柄绑定；为 <see langword="true"/> 时字段类型必须是 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/>，并会参与 JML Steam Input action 生成。</param>
+            <param name="allowKeyboard">是否允许键盘绑定。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.UIKeybindAttribute.#ctor(System.Boolean,System.Boolean)">
+            <summary>
+            将 <see cref="T:Godot.Key"/> 或 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/> 配置项渲染为按键绑定控件。
+            </summary>
+            <param name="allowController">是否允许手柄绑定；为 <see langword="true"/> 时字段类型必须是 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/>，并会参与 JML Steam Input action 生成。</param>
+            <param name="allowKeyboard">是否允许键盘绑定。</param>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIKeybindAttribute.AllowKeyboard">
+            <summary>
+            是否允许键盘绑定。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIKeybindAttribute.AllowController">
+            <summary>
+            是否允许手柄绑定；Steam Input 可用时，实际手柄按键建议在 Steam 输入中绑定。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.JmcHotkeyAttribute">
+            <summary>
+            将一个静态无参方法绑定到已有的热键配置成员。
+            </summary>
+            <param name="bindingMember">保存热键值的静态字段或静态属性名称，类型必须是 <see cref="P:JmcModLib.Config.UI.JmcHotkeyAttribute.Key"/> 或 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/>。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcHotkeyAttribute.#ctor(System.String)">
+            <summary>
+            将一个静态无参方法绑定到已有的热键配置成员。
+            </summary>
+            <param name="bindingMember">保存热键值的静态字段或静态属性名称，类型必须是 <see cref="P:JmcModLib.Config.UI.JmcHotkeyAttribute.Key"/> 或 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/>。</param>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcHotkeyAttribute.BindingMember">
+            <summary>
+            保存热键值的静态字段或静态属性名称。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcHotkeyAttribute.Key">
+            <summary>
+            运行时注册键；留空时会根据方法名自动生成。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcHotkeyAttribute.ConsumeInput">
+            <summary>
+            触发热键后是否吃掉本次输入，默认吃掉。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcHotkeyAttribute.ExactModifiers">
+            <summary>
+            是否要求组合键修饰键完全一致，默认要求完全一致。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcHotkeyAttribute.AllowEcho">
+            <summary>
+            是否允许键盘长按产生的 Echo 输入触发热键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcHotkeyAttribute.DebounceMs">
+            <summary>
+            热键防抖时间，单位为毫秒。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.UIHotkeyAttribute">
+            <summary>
+            创建一个可在设置界面修改的热键项，并将其绑定到静态无参方法。
+            </summary>
+            <param name="displayName">设置界面中显示的回退名称。</param>
+            <param name="group">设置项所属分组。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.UIHotkeyAttribute.#ctor(System.String,System.String)">
+            <summary>
+            创建一个可在设置界面修改的热键项，并将其绑定到静态无参方法。
+            </summary>
+            <param name="displayName">设置界面中显示的回退名称。</param>
+            <param name="group">设置项所属分组。</param>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.DisplayName">
+            <summary>
+            设置界面中显示的回退名称。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.Group">
+            <summary>
+            设置项所属分组。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.Key">
+            <summary>
+            配置存储键；留空时会根据方法名自动生成。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.Description">
+            <summary>
+            设置项说明的回退文本。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.LocTable">
+            <summary>
+            本地化表名；留空时使用 JML 默认设置表。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.DisplayNameKey">
+            <summary>
+            显示名称的本地化键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.DescriptionKey">
+            <summary>
+            说明文本的本地化键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.GroupKey">
+            <summary>
+            分组名称的本地化键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.Order">
+            <summary>
+            设置项排序值，数值越小越靠前。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.RestartRequired">
+            <summary>
+            修改后是否需要重启游戏或重新进入相关流程才完全生效。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.DefaultKeyboard">
+            <summary>
+            默认键盘按键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.DefaultModifiers">
+            <summary>
+            默认键盘组合修饰键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.DefaultController">
+            <summary>
+            默认手柄输入 Action 名称，由于实际一般使用Steam Input，建议留空。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.AllowKeyboard">
+            <summary>
+            是否允许在设置界面绑定键盘按键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.AllowController">
+            <summary>
+            是否允许手柄绑定；Steam Input 可用时，JML 会为此热键生成 Steam Digital Action，实际手柄按键建议在 Steam 输入中绑定。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.ConsumeInput">
+            <summary>
+            触发热键后是否吃掉本次输入，默认吃掉。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.ExactModifiers">
+            <summary>
+            是否要求组合键修饰键完全一致，默认要求完全一致。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.AllowEcho">
+            <summary>
+            是否允许键盘长按产生的 Echo 输入触发热键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.UIHotkeyAttribute.DebounceMs">
+            <summary>
+            热键防抖时间，单位为毫秒。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.JmcHotkeyManager">
+            <summary>
+            JML 运行时热键分发器，用于处理 MOD 自有的可配置热键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcHotkeyManager.IsInitialized">
+            <summary>
+            热键系统是否已经初始化。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcHotkeyManager.Init">
+            <summary>
+            初始化热键系统。通常由 <c>UseConfig()</c> 自动调用，子 MOD 一般不需要手动调用。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcHotkeyManager.Register(System.String,System.Func{JmcModLib.Config.UI.JmcKeyBinding},System.Action,System.Boolean,System.Boolean,System.Boolean,System.UInt64,System.Reflection.Assembly)">
+            <summary>
+            注册一个运行时热键，并通过 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/> 动态读取当前绑定值。
+            </summary>
+            <param name="key">热键注册键，同一 MOD 内应保持唯一。</param>
+            <param name="bindingGetter">用于读取当前热键绑定值的委托。</param>
+            <param name="action">热键触发时执行的动作。</param>
+            <param name="consumeInput">触发后是否吃掉本次输入。</param>
+            <param name="exactModifiers">是否要求键盘修饰键完全一致。</param>
+            <param name="allowEcho">是否允许键盘 Echo 输入触发。</param>
+            <param name="debounceMs">防抖时间，单位为毫秒。</param>
+            <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcHotkeyManager.Register(System.String,System.Func{Godot.Key},System.Action,System.Boolean,System.Boolean,System.Boolean,System.UInt64,System.Reflection.Assembly)">
+            <summary>
+            注册一个仅使用键盘按键的运行时热键。
+            </summary>
+            <param name="key">热键注册键，同一 MOD 内应保持唯一。</param>
+            <param name="keyGetter">用于读取当前键盘按键的委托。</param>
+            <param name="action">热键触发时执行的动作。</param>
+            <param name="consumeInput">触发后是否吃掉本次输入。</param>
+            <param name="exactModifiers">是否要求键盘修饰键完全一致。</param>
+            <param name="allowEcho">是否允许键盘 Echo 输入触发。</param>
+            <param name="debounceMs">防抖时间，单位为毫秒。</param>
+            <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcHotkeyManager.Unregister(System.String,System.Reflection.Assembly)">
+            <summary>
+            注销当前 MOD 中指定注册键的运行时热键。
+            </summary>
+            <param name="key">热键注册键。</param>
+            <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+            <returns>如果成功移除了热键，返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcHotkeyManager.UnregisterAssembly(System.Reflection.Assembly)">
+            <summary>
+            注销指定程序集下的所有运行时热键。
+            </summary>
+            <param name="assembly">所属程序集；留空时自动解析调用方程序集。</param>
+        </member>
+        <member name="T:JmcModLib.Config.UI.HotkeyOptions">
+            <summary>
+            运行时热键的触发选项。
+            </summary>
+            <param name="ConsumeInput">触发后是否吃掉本次输入。</param>
+            <param name="ExactModifiers">是否要求键盘修饰键完全一致。</param>
+            <param name="AllowEcho">是否允许键盘 Echo 输入触发。</param>
+            <param name="DebounceMs">防抖时间，单位为毫秒。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.HotkeyOptions.#ctor(System.Boolean,System.Boolean,System.Boolean,System.UInt64)">
+            <summary>
+            运行时热键的触发选项。
+            </summary>
+            <param name="ConsumeInput">触发后是否吃掉本次输入。</param>
+            <param name="ExactModifiers">是否要求键盘修饰键完全一致。</param>
+            <param name="AllowEcho">是否允许键盘 Echo 输入触发。</param>
+            <param name="DebounceMs">防抖时间，单位为毫秒。</param>
+        </member>
+        <member name="P:JmcModLib.Config.UI.HotkeyOptions.ConsumeInput">
+            <summary>触发后是否吃掉本次输入。</summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.HotkeyOptions.ExactModifiers">
+            <summary>是否要求键盘修饰键完全一致。</summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.HotkeyOptions.AllowEcho">
+            <summary>是否允许键盘 Echo 输入触发。</summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.HotkeyOptions.DebounceMs">
+            <summary>防抖时间，单位为毫秒。</summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.JmcKeyModifiers">
+            <summary>
+            键盘热键使用的修饰键组合。
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Config.UI.JmcKeyModifiers.None">
+            <summary>
+            不使用修饰键。
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Config.UI.JmcKeyModifiers.Ctrl">
+            <summary>
+            Ctrl 修饰键。
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Config.UI.JmcKeyModifiers.Shift">
+            <summary>
+            Shift 修饰键。
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Config.UI.JmcKeyModifiers.Alt">
+            <summary>
+            Alt 修饰键。
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Config.UI.JmcKeyModifiers.Meta">
+            <summary>
+            Meta/Command 修饰键。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Config.UI.JmcKeyBinding">
+            <summary>
+            表示由 MOD 自己持有的热键绑定，不会直接写入游戏原生输入命令表。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcKeyBinding.Keyboard">
+            <summary>
+            键盘按键；为 <see cref="F:Godot.Key.None"/> 时表示不绑定键盘。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcKeyBinding.Controller">
+            <summary>
+            手柄输入 Action 名称；为空时表示不绑定手柄，不存在于 Godot InputMap 的名称会被安全忽略。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcKeyBinding.Modifiers">
+            <summary>
+            键盘组合修饰键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcKeyBinding.Enabled">
+            <summary>
+            当前热键是否启用。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.#ctor">
+            <summary>
+            创建一个未绑定的热键。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.#ctor(Godot.Key)">
+            <summary>
+            使用单个键盘按键创建热键。
+            </summary>
+            <param name="keyboard">键盘按键。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.#ctor(Godot.Key,System.String,JmcModLib.Config.UI.JmcKeyModifiers,System.Boolean)">
+            <summary>
+            创建可同时保存键盘和手柄 Action 的热键。
+            </summary>
+            <param name="keyboard">键盘按键。</param>
+            <param name="controller">手柄输入 Action 名称。</param>
+            <param name="modifiers">键盘组合修饰键。</param>
+            <param name="enabled">热键是否启用。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.#ctor(Godot.Key,System.String,JmcModLib.Config.UI.JmcKeyModifiers)">
+            <summary>
+            创建同时包含键盘按键、手柄 Action 和修饰键的启用热键。
+            </summary>
+            <param name="keyboard">键盘按键。</param>
+            <param name="controller">手柄输入 Action 名称。</param>
+            <param name="modifiers">键盘组合修饰键。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.#ctor(Godot.Key,JmcModLib.Config.UI.JmcKeyModifiers,System.Boolean)">
+            <summary>
+            使用键盘按键和修饰键创建热键。
+            </summary>
+            <param name="keyboard">键盘按键。</param>
+            <param name="modifiers">键盘组合修饰键。</param>
+            <param name="enabled">热键是否启用。</param>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcKeyBinding.HasKeyboard">
+            <summary>
+            是否绑定了键盘按键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcKeyBinding.HasModifiers">
+            <summary>
+            是否配置了键盘修饰键。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Config.UI.JmcKeyBinding.HasController">
+            <summary>
+            是否绑定了手柄 Action。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.WithKeyboard(Godot.Key)">
+            <summary>
+            返回替换键盘按键后的新热键，并清空修饰键。
+            </summary>
+            <param name="keyboard">新的键盘按键。</param>
+            <returns>替换后的热键值。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.WithKeyboard(Godot.Key,JmcModLib.Config.UI.JmcKeyModifiers)">
+            <summary>
+            返回替换键盘按键和修饰键后的新热键。
+            </summary>
+            <param name="keyboard">新的键盘按键。</param>
+            <param name="modifiers">新的修饰键组合。</param>
+            <returns>替换后的热键值。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.WithController(System.String)">
+            <summary>
+            返回替换手柄 Action 后的新热键。
+            </summary>
+            <param name="controller">新的手柄输入 Action 名称。</param>
+            <returns>替换后的热键值。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.WithEnabled(System.Boolean)">
+            <summary>
+            返回修改启用状态后的新热键。
+            </summary>
+            <param name="enabled">是否启用热键。</param>
+            <returns>替换后的热键值。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.IsPressed(Godot.InputEvent,System.Boolean,System.Boolean)">
+            <summary>
+            判断输入事件是否按下了此热键。
+            </summary>
+            <param name="inputEvent">Godot 输入事件。</param>
+            <param name="allowEcho">是否允许键盘 Echo 输入触发。</param>
+            <param name="exactModifiers">是否要求修饰键完全一致。</param>
+            <returns>如果本次输入触发了热键，返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.IsReleased(Godot.InputEvent)">
+            <summary>
+            判断输入事件是否释放了此热键。
+            </summary>
+            <param name="inputEvent">Godot 输入事件。</param>
+            <returns>如果本次输入释放了热键，返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.IsDown(System.Boolean)">
+            <summary>
+            判断此热键当前是否处于按下状态。
+            </summary>
+            <param name="exactModifiers">是否要求修饰键完全一致。</param>
+            <returns>如果热键当前处于按下状态，返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.op_Implicit(Godot.Key)~JmcModLib.Config.UI.JmcKeyBinding">
+            <summary>
+            将 <see cref="T:Godot.Key"/> 隐式转换为仅包含键盘按键的 <see cref="T:JmcModLib.Config.UI.JmcKeyBinding"/>。
+            </summary>
+            <param name="keyboard">键盘按键。</param>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.IsPressed(Godot.Key,Godot.InputEvent,System.Boolean)">
+            <summary>
+            判断输入事件是否按下了指定键盘按键。
+            </summary>
+            <param name="keyboard">键盘按键。</param>
+            <param name="inputEvent">Godot 输入事件。</param>
+            <param name="allowEcho">是否允许键盘 Echo 输入触发。</param>
+            <returns>如果本次输入按下了指定按键，返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.IsReleased(Godot.Key,Godot.InputEvent)">
+            <summary>
+            判断输入事件是否释放了指定键盘按键。
+            </summary>
+            <param name="keyboard">键盘按键。</param>
+            <param name="inputEvent">Godot 输入事件。</param>
+            <returns>如果本次输入释放了指定按键，返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.ToKeyboardText">
+            <summary>
+            生成键盘热键的可读文本。
+            </summary>
+            <returns>键盘热键文本；没有键盘绑定时返回空字符串。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.ToString">
+            <summary>
+            生成包含键盘与手柄绑定的可读文本。
+            </summary>
+            <returns>热键文本。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.ReadModifiers(Godot.InputEventKey)">
+            <summary>
+            从键盘输入事件中读取当前按下的修饰键。
+            </summary>
+            <param name="keyEvent">键盘输入事件。</param>
+            <returns>修饰键组合。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.ReadCurrentModifiers">
+            <summary>
+            读取当前实际按下的键盘修饰键。
+            </summary>
+            <returns>修饰键组合。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.IsModifierKey(Godot.Key)">
+            <summary>
+            判断指定键是否是修饰键。
+            </summary>
+            <param name="key">键盘按键。</param>
+            <returns>如果是修饰键，返回 <see langword="true"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Config.UI.JmcKeyBinding.ReadKey(Godot.InputEventKey)">
+            <summary>
+            从键盘输入事件中读取实际按键。
+            </summary>
+            <param name="keyEvent">键盘输入事件。</param>
+            <returns>读取到的键盘按键。</returns>
+        </member>
+        <member name="T:JmcModLib.Core.AttributeRouter.AttributeRouter">
+            <summary>
+            Scans registered mod assemblies and routes discovered attributes to handlers.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Core.AttributeRouter.IAttributeHandler">
+            <summary>
+            Handles a discovered attribute on a reflected accessor.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Core.ModRegistry">
+            <summary>
+            Lightweight assembly-to-mod context registry for STS2 mods.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Input.GodotActionInputBackend">
+            <summary>
+            Godot Action 输入后端。当前 Godot 输入仍由热键中继直接处理 InputEvent，这里只保留统一调度占位。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Input.GodotActionInputBackend.Name">
+            <inheritdoc />
+        </member>
+        <member name="M:JmcModLib.Input.GodotActionInputBackend.Initialize">
+            <inheritdoc />
+        </member>
+        <member name="M:JmcModLib.Input.GodotActionInputBackend.Process">
+            <inheritdoc />
+        </member>
+        <member name="M:JmcModLib.Input.GodotActionInputBackend.Shutdown">
+            <inheritdoc />
+        </member>
+        <member name="T:JmcModLib.Input.IJmcInputBackend">
+            <summary>
+            JML 内部输入后端的最小抽象，用于把 Godot Action、Steam Input 等来源统一接入热键系统。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Input.IJmcInputBackend.Name">
+            <summary>
+            输入后端的内部名称，仅用于日志和诊断。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Input.IJmcInputBackend.Initialize">
+            <summary>
+            初始化输入后端。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Input.IJmcInputBackend.Process">
+            <summary>
+            每帧轮询输入后端，并把逻辑动作变化分发给热键系统。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Input.IJmcInputBackend.Shutdown">
+            <summary>
+            释放输入后端持有的运行时资源。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Input.SteamInputBackend">
+            <summary>
+            Steam Input Digital Action 后端，用于轮询 JML 生成的逻辑动作并分发到热键系统。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Input.SteamInputBackend.Name">
+            <inheritdoc />
+        </member>
+        <member name="M:JmcModLib.Input.SteamInputBackend.Initialize">
+            <inheritdoc />
+        </member>
+        <member name="M:JmcModLib.Input.SteamInputBackend.Process">
+            <inheritdoc />
+        </member>
+        <member name="M:JmcModLib.Input.SteamInputBackend.Shutdown">
+            <inheritdoc />
+        </member>
+        <member name="T:JmcModLib.Input.JmcInputActionRegistry">
+            <summary>
+            JML 内部逻辑输入动作注册表，用于把配置热键映射到 Steam Input 可识别的稳定 Action。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Input.JmcInputManager">
+            <summary>
+            JML 内部输入后端管理器，负责把 Steam Input 等轮询型输入来源统一调度到热键系统。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Input.JmcInputManager.RegisteredBackends">
+            <summary>
+            已注册的内部输入后端。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Input.JmcInputManager.Initialize">
+            <summary>
+            初始化所有输入后端。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Input.JmcInputManager.Process">
+            <summary>
+            每帧轮询所有输入后端。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Input.JmcInputManager.Shutdown">
+            <summary>
+            关闭所有输入后端。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Input.JmcSteamInputManifestInstaller">
+            <summary>
+            在游戏初始化 Steam Input 前生成并安装 JML 合并版 Steam Input manifest。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Input.SteamInputManifestMerger">
+            <summary>
+            针对 Steam Input VDF 的轻量合并器，读取游戏原始 IGA 并输出可被运行时覆盖 API 接受的 Action Manifest。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Input.SteamInputPatches">
+            <summary>
+            Steam Input 初始化补丁：必须在游戏调用 SteamInput.Init 前安装 JML 生成的 manifest。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Prefabs.JmcConfirmationPopup">
+            <summary>
+            通过游戏原生的 <see cref="T:MegaCrit.Sts2.Core.Nodes.Multiplayer.NGenericPopup"/> 与 <see cref="T:MegaCrit.Sts2.Core.Nodes.CommonUi.NModalContainer"/> 显示通用弹窗。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Prefabs.JmcConfirmationPopup.ShowConfirmationAsync(System.String,System.String,System.String,System.String,System.Boolean,System.Reflection.Assembly)">
+            <summary>
+            显示原生双按钮确认弹窗。
+            </summary>
+            <param name="title">弹窗标题。原生标题使用普通 <c>MegaLabel</c>，不建议写富文本。</param>
+            <param name="body">弹窗正文。原生正文使用 <c>MegaRichTextLabel</c>，支持游戏富文本标签。</param>
+            <param name="confirmText">可选确认按钮文本；留空时使用游戏默认确认文本。</param>
+            <param name="cancelText">可选取消按钮文本；留空时使用游戏默认取消文本。</param>
+            <param name="showBackstop">是否显示弹窗背后的原生深色模态遮罩。</param>
+            <param name="assembly">可选所属程序集，用于日志上下文。</param>
+            <returns>按下确认按钮返回 <see langword="true"/>；取消、关闭或弹窗不可用时返回 <see langword="false"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Prefabs.JmcConfirmationPopup.ShowMessageAsync(System.String,System.String,System.String,System.Boolean,System.Reflection.Assembly)">
+            <summary>
+            显示只有一个确认按钮的原生提示弹窗。
+            </summary>
+            <param name="title">弹窗标题。</param>
+            <param name="body">弹窗正文。原生正文标签支持富文本。</param>
+            <param name="okText">可选确认按钮文本；留空时使用游戏默认确认文本。</param>
+            <param name="showBackstop">是否显示弹窗背后的原生深色模态遮罩。</param>
+            <param name="assembly">可选所属程序集，用于日志上下文。</param>
+            <returns>按下按钮返回 <see langword="true"/>；关闭或弹窗不可用时返回 <see langword="false"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Prefabs.JmcConfirmationPopup.ShowConfirmationAsync(MegaCrit.Sts2.Core.Localization.LocString,MegaCrit.Sts2.Core.Localization.LocString,MegaCrit.Sts2.Core.Localization.LocString,MegaCrit.Sts2.Core.Localization.LocString,System.Boolean,System.Reflection.Assembly)">
+            <summary>
+            使用本地化文本显示原生双按钮确认弹窗。
+            </summary>
+            <param name="title">本地化弹窗标题。</param>
+            <param name="body">本地化弹窗正文。原生正文标签支持富文本。</param>
+            <param name="confirmText">可选本地化确认按钮文本；留空时使用游戏默认确认文本。</param>
+            <param name="cancelText">可选本地化取消按钮文本；留空时使用游戏默认取消文本。</param>
+            <param name="showBackstop">是否显示弹窗背后的原生深色模态遮罩。</param>
+            <param name="assembly">可选所属程序集，用于日志上下文。</param>
+            <returns>按下确认按钮返回 <see langword="true"/>；取消、关闭或弹窗不可用时返回 <see langword="false"/>。</returns>
+        </member>
+        <member name="M:JmcModLib.Prefabs.JmcConfirmationPopup.ShowMessageAsync(MegaCrit.Sts2.Core.Localization.LocString,MegaCrit.Sts2.Core.Localization.LocString,MegaCrit.Sts2.Core.Localization.LocString,System.Boolean,System.Reflection.Assembly)">
+            <summary>
+            使用本地化文本显示只有一个确认按钮的原生提示弹窗。
+            </summary>
+            <param name="title">本地化弹窗标题。</param>
+            <param name="body">本地化弹窗正文。原生正文标签支持富文本。</param>
+            <param name="okText">可选本地化确认按钮文本；留空时使用游戏默认确认文本。</param>
+            <param name="showBackstop">是否显示弹窗背后的原生深色模态遮罩。</param>
+            <param name="assembly">可选所属程序集，用于日志上下文。</param>
+            <returns>按下按钮返回 <see langword="true"/>；关闭或弹窗不可用时返回 <see langword="false"/>。</returns>
+        </member>
+        <member name="T:JmcModLib.Reflection.MemberAccessor">
+            <summary>
+            字段 / 属性 的统一高性能访问器。
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.MemberAccessor.CanRead">
+            <summary>
+            可读
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.MemberAccessor.CanWrite">
+            <summary>
+            可写
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.MemberAccessor.ValueType">
+            <summary>
+            成员的值类型（字段类型或属性类型）
+            </summary>
+            <remarks>
+            对于字段，返回字段的类型；对于属性，返回属性的类型。
+            不要与 <see cref="P:System.Reflection.MemberInfo.MemberType"/> 混淆，后者返回成员种类（Field/Property）。
+            </remarks>
+        </member>
+        <member name="P:JmcModLib.Reflection.MemberAccessor.MemberType">
+            <summary>
+            成员种类（字段、属性或索引器）
+            </summary>
+            <remarks>
+            等同于 <see cref="P:System.Reflection.MemberInfo.MemberType"/>，直接暴露以简化访问。
+            </remarks>
+        </member>
+        <member name="P:JmcModLib.Reflection.MemberAccessor.TypedGetter">
+            <summary>
+            强类型委托，当ref/ref-like/索引器/不可读时为空
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.MemberAccessor.TypedSetter">
+            <summary>
+            强类型委托，当ref/ref-like/索引器/不可写时为空
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.GetValue(System.Object)">
+            <summary>
+            获取值。
+            </summary>
+            <param name="target">实例对象，静态则为null</param>
+            <returns>属性值</returns>
+            <exception cref="T:System.InvalidOperationException">如果是索引器属性或成员不可读</exception>
+            <exception cref="T:System.ArgumentNullException">如果非静态情况下 target 为空</exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.SetValue(System.Object,System.Object)">
+            <summary>
+            设置值。
+            </summary>
+            <param name="target"> 实例对象，静态则为null </param>
+            <param name="value"> 待设置的值 </param>
+            <exception cref="T:System.InvalidOperationException">如果是索引器属性或成员不可写</exception>
+            <exception cref="T:System.ArgumentNullException">如果非静态情况下 target 为空</exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.GetValue(System.Object,System.Object[])">
+            <summary>
+            为索引器属性获取值。
+            </summary>
+            <param name="target">实例对象，静态则为null</param>
+            <param name="indexArgs">索引参数</param>
+            <returns>属性值</returns>
+            <exception cref="T:System.InvalidOperationException">如果不是索引器属性或成员不可读</exception>
+            <exception cref="T:System.ArgumentNullException">如果非静态情况下 target 为空</exception>
+            <exception cref="T:System.ArgumentException">如果索引器参数数量不匹配</exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.SetValue(System.Object,System.Object,System.Object[])">
+            <summary>
+            为索引器属性设置值
+            </summary>
+            <param name="target"> 实例对象，静态则为null </param>
+            <param name="value"> 待设置的值 </param>
+            <param name="indexArgs"> 索引参数 </param>
+            <exception cref="T:System.InvalidOperationException">如果不是索引器属性或成员不可写</exception>
+            <exception cref="T:System.ArgumentNullException">如果非静态情况下 target 为空</exception>
+            <exception cref="T:System.ArgumentException">如果索引器参数数量不匹配</exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.GetValue``2(``0)">
+            <summary>
+            泛型特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.SetValue``2(``0,``1)">
+            <summary>
+            泛型特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.GetValue``1">
+            <summary>
+            静态重载特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.SetValue``1(``0)">
+            <summary>
+            静态成员设置值特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.Get(System.Type,System.String)">
+            <summary>
+            获得一个成员访问器（自动缓存）。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.GetIndexer(System.Type,System.Type[])">
+             <summary>
+             索引器访问器获取，主要用于具有多个索引重载的情况。
+             
+             <example>
+             示例：
+             <code>
+            class MyList
+            {
+                private string[] _data = { "Apple", "Banana", "Cat" };
+            
+                public string this[int index]
+                {
+                    get => _data[index];
+                    set => _data[index] = value;
+                }
+            
+                public string this[int x, int y]
+                {
+                    get => $"{x},{y}";
+                    set { }
+                }
+            }
+             
+             var acc1 = MemberAccessor.GetIndexer(typeof(MyList), typeof(int));
+             var value1 = acc1.GetValue(list, 1); // "Banana"
+            
+             var acc2 = MemberAccessor.GetIndexer(typeof(MyList), typeof(int), typeof(int));
+             var value2 = acc2.GetValue(list, 3, 5); // "3,5"
+             </code>
+             </example>
+             
+             </summary>
+             <param name="type"></param>
+             <param name="parameterTypes"></param>
+             <returns></returns>
+             <exception cref="T:System.MissingMemberException"></exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.Get(System.Reflection.MemberInfo)">
+            <summary>
+            按MemberInfo获取访问器
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.IsSupportedMember(System.Reflection.MemberInfo)">
+            <summary>
+            不处理的成员类型
+            </summary>
+            <returns>若不处理，返回false</returns>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.GetAll(System.Type,System.Reflection.BindingFlags)">
+            <summary>
+            获取某类型的所有成员（可选择包含继承）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MemberAccessor.GetAll``1(System.Reflection.BindingFlags)">
+            <summary>
+            泛型版本
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Reflection.MethodAccessor">
+            <summary>
+            用于反射方法
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Reflection.MethodAccessor.ParamSignature">
+            <summary>
+            参数签名（用于缓存键）
+            说明：
+              1. null / 未提供参数列表用 Length = -1 表示（即 default ParamSignature）
+              2. 泛型参数占位符统一使用 RuntimeTypeHandle = default 记录，使不同的 TUI / T1 在同一方法定义上产生相同签名
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.MethodAccessor.IsStatic">
+            <summary>
+            是否为静态
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.MethodAccessor.TypedDelegate">
+            <summary>
+            若可用，返回强类型委托 (Func/Action)。实例方法第一个参数是声明类型实例；静态方法不含实例参数。
+            不支持 ref/out/泛型定义/包含可变参数的方法。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Get(System.Reflection.MethodInfo)">
+            <summary>
+            从 MethodInfo 获取 MethodAccessor 并缓存
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.GetTypedDelegate">
+            <summary>
+            获取强类型委托（若不存在抛异常）
+            </summary>
+            <exception cref="T:System.InvalidOperationException"></exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.GetAll(System.Type,System.Reflection.BindingFlags)">
+            <summary>
+            获取某类型的所有方法（可选择包含继承方法）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.GetAll``1(System.Reflection.BindingFlags)">
+            <summary>
+            泛型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Get(System.Type,System.String,System.Type[])">
+            <summary>
+            获取类型下方法的 MethodAccessor（可匹配参数类型）
+            </summary>
+            <param name="type"> 类类型 </param>
+            <param name="methodName"> 方法名 </param>
+            <param name="parameterTypes"> 方法的参数列表类型，泛型位将跳过（可以用typeof(object)或者别的什么占位，但不能填null），不填则默认找第一个（在有多个重载的情况下） </param>
+            <returns> 返回一个MethodAccessor，若是泛型方法，需要进一步Make，否则可以直接invoke </returns>
+            <exception cref="T:System.MissingMethodException"></exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.MakeGeneric(System.Type[])">
+            <summary>
+            构造泛型方法实例
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke(System.Object,System.Object[])">
+            <summary>
+            调用方法（实例/静态）
+            </summary>
+            <param name="instance"> 实例对象，静态则留空 </param>
+            <param name="args"> 调用的参数列表 </param>
+            <returns> 返回方法的返回值 </returns>
+            <exception cref="T:System.ArgumentNullException"> 实例方法需要实例对象 </exception>
+            <exception cref="T:System.InvalidOperationException"> 泛型方法需要先MakeGeneric(...)  </exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke(System.Object)">
+            <summary>
+            无参特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke(System.Object,System.Object)">
+            <summary>
+            单参特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke(System.Object,System.Object,System.Object)">
+            <summary>
+            二参特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke(System.Object,System.Object,System.Object,System.Object)">
+            <summary>
+            三参特化
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke``2(``0)">
+            <summary>
+            无参特化强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke``3(``0,``1)">
+            <summary>
+            单参特化强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke``4(``0,``1,``2)">
+            <summary>
+            二参特化强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.Invoke``5(``0,``1,``2,``3)">
+            <summary>
+            三参特化强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeVoid``1(``0)">
+            <summary>
+            无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeVoid``2(``0,``1)">
+            <summary>
+            无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeVoid``3(``0,``1,``2)">
+            <summary>
+            无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeVoid``4(``0,``1,``2,``3)">
+            <summary>
+            无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStatic``1">
+            <summary>
+            静态特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStatic``2(``0)">
+            <summary>
+            静态特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStatic``3(``0,``1)">
+            <summary>
+            静态特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStatic``4(``0,``1,``2)">
+            <summary>
+            静态特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStaticVoid">
+            <summary>
+            静态无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStaticVoid``1(``0)">
+            <summary>
+            静态无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStaticVoid``2(``0,``1)">
+            <summary>
+            静态无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.InvokeStaticVoid``3(``0,``1,``2)">
+            <summary>
+            静态无返回值特化的强类型版本
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.CreateInvoker(System.Reflection.MethodInfo)">
+            <summary>
+            创建方法调用委托
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.MethodAccessor.EmitUnboxWithEnumSupport(System.Reflection.Emit.ILGenerator,System.Type)">
+            <summary>
+            对普通值类型执行 Unbox_Any
+            对 enum 正确执行底层类型转换 + enum 转换
+            对引用类型执行 Castclass
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Reflection.ReflectionAccessorBase">
+            <summary>
+            所有访问器的基类
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Reflection.ReflectionAccessorBase.DefaultFlags">
+            <summary>
+            默认搜索所有静态、实例、公有、私有，不搜索继承
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.ReflectionAccessorBase.Name">
+            <summary>
+            成员名称
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.ReflectionAccessorBase.DeclaringType">
+            <summary>
+            声明该成员的类型
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.ReflectionAccessorBase.IsStatic">
+            <summary>
+            该成员是否为静态
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase.IsSaveOwner(System.Type)">
+            <summary>
+            判断指定的类型是否是一个安全的拥有者类型（可作为成员的 DeclaringType）
+            </summary>
+            <param name="declaringType"></param>
+            <returns></returns>
+        </member>
+        <member name="F:JmcModLib.Reflection.ReflectionAccessorBase._attrCache">
+            <summary>
+            访问器缓存
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase.GetAttribute``1">
+            <summary>
+            获取指定类型的第一个 Attribute。如果不存在返回 null。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase.HasAttribute``1">
+            <summary>
+            判断是否具有某个 Attribute。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase.GetAttributes(System.Type)">
+            <summary>
+            获取指定类型的所有 Attribute。如果 type 为 null，返回所有 Attribute。
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase.GetAllAttributes">
+            <summary>
+            获取所有 Attribute（等价于 GetAttributes(null)）
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Reflection.ReflectionAccessorBase`2">
+            <summary>
+            MemberAccessor 和 MethodAccessor 的派生基类
+            </summary>
+            <remarks>
+            构造基类
+            </remarks>
+            <param name="member">成员信息</param>
+            <exception cref="T:System.ArgumentNullException"> 若 member 为 null </exception>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase`2.#ctor(`0)">
+            <summary>
+            MemberAccessor 和 MethodAccessor 的派生基类
+            </summary>
+            <remarks>
+            构造基类
+            </remarks>
+            <param name="member">成员信息</param>
+            <exception cref="T:System.ArgumentNullException"> 若 member 为 null </exception>
+        </member>
+        <member name="P:JmcModLib.Reflection.ReflectionAccessorBase`2.CacheCount">
+            <summary>
+            获取当前缓存的条目数量
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase`2.GetOrCreate(`0,System.Func{`0,`1})">
+            <summary>
+            从 MemberInfo 获取 TAccessor 并缓存（由子类实现具体的创建逻辑）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase`2.ClearCache">
+            <summary>
+            清空缓存（用于测试或内存管理）
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.ReflectionAccessorBase`2.MemberInfo">
+            <summary>
+            底层的 MemberInfo（FieldInfo/PropertyInfo/MethodInfo 等）
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.ReflectionAccessorBase`2.Name">
+            <summary>
+            成员名称
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.ReflectionAccessorBase`2.DeclaringType">
+            <summary>
+            声明该成员的类型
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.ReflectionAccessorBase`2.GetAttributes(System.Type)">
+            <summary>
+            获取指定类型的所有 Attribute。如果 type 为 null，返回所有 Attribute。
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Reflection.TypeAccessor">
+            <summary>
+            类型访问器 - 提供对 Type 本身及其成员的统一访问
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Reflection.TypeAccessor.Type">
+            <summary>
+            被访问的类型（等同于 MemberInfo）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.TypeAccessor.Get(System.Type)">
+            <summary>
+            获取或创建 TypeAccessor（会缓存）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.TypeAccessor.Get``1">
+            <summary>
+            泛型版本（会缓存）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.TypeAccessor.CreateInstance">
+            <summary>
+            创建实例（调用无参构造函数）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.TypeAccessor.CreateInstance(System.Object[])">
+            <summary>
+            创建实例（带参数）
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Reflection.TypeAccessor.CreateInstance``1">
+            <summary>
+            泛型创建实例
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.ComponentHelper">
+            <summary>
+            Small Godot node helpers that replace the old Unity component helpers.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.L10n">
+             <summary>
+             STS2 localization helpers.
+            
+             Unlike Duckov, STS2 discovers mod localization tables from the PCK automatically.
+             This helper only builds resource paths and LocString wrappers; no startup registration is required.
+             </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.LogConfigUIFlags">
+            <summary>
+            Reserved hook point for future logger UI integration.
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.ModLogger">
+            <summary>
+            Thin wrapper over STS2's logger with per-assembly configuration.
+            </summary>
+        </member>
+        <member name="T:ExprHelper">
+            <summary>
+            解析表达式的一些库
+            </summary>
+        </member>
+        <member name="P:ExprHelper.EnableCache">
+            <summary>
+            是否开启缓存，不建议修改
+            </summary>
+        </member>
+        <member name="P:ExprHelper.AccessMode">
+            <summary>
+            生成Accessor的后端，不建议修改，默认为Emit
+            </summary>
+        </member>
+        <member name="T:ExprHelper.MemberAccessMode">
+            <summary>
+            生成Accessor的后端模式
+            </summary>
+        </member>
+        <member name="F:ExprHelper.MemberAccessMode.Reflection">
+            <summary>
+            直接反射
+            </summary>
+        </member>
+        <member name="F:ExprHelper.MemberAccessMode.ExpressionTree">
+            <summary>
+            表达式树实现
+            </summary>
+        </member>
+        <member name="F:ExprHelper.MemberAccessMode.Emit">
+            <summary>
+            Emit实现
+            </summary>
+        </member>
+        <member name="F:ExprHelper.MemberAccessMode.Default">
+            <summary>
+            默认值，默认为Emit
+            </summary>
+        </member>
+        <member name="M:ExprHelper.Expect``2">
+            <summary>
+            仅供检查类型别名嵌套关系是否正确的辅助函数
+            </summary>
+        </member>
+        <member name="T:ExprHelper.MemberAccessors">
+            <summary>
+            类型访问器辅助类
+            </summary>
+        </member>
+        <member name="M:ExprHelper.MemberAccessors.#ctor(System.Delegate,System.Delegate)">
+            <summary>
+            类型访问器辅助类
+            </summary>
+        </member>
+        <member name="M:ExprHelper.GetOrCreateAccessors``1(System.Linq.Expressions.Expression{System.Func{``0}},System.Reflection.Assembly)">
+            <summary>
+            从一个变量自动构造getter函数与setter函数，调用形式形如：
+            <example>
+            <code>
+             var (gf, sf) = ExprHelper.GetOrCreateAccessors(() => obj.Field)
+            </code>
+            </example>
+            </summary>
+            <typeparam name="T">变量的类型</typeparam>
+            <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
+            <param name="assembly">程序集，默认为调用者</param>
+            <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
+            <exception cref="T:System.ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
+            <exception cref="T:System.InvalidOperationException">实例对象为空、模式选择不正确</exception>
+        </member>
+        <member name="M:ExprHelper.GetOrCreateAccessors``1(System.Linq.Expressions.Expression{System.Func{``0}},System.Boolean@,System.Reflection.Assembly)">
+            <summary>
+            从一个变量自动构造getter函数与setter函数，并检查是否命中缓存，调用形式形如：
+            <example>
+            <code>
+            var (g, s) = ExprHelper.GetOrCreateAccessors(() => a.Field, out bool hit);
+            </code>
+            </example>
+            </summary>
+            <typeparam name="T">变量的类型</typeparam>
+            <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
+            <param name="cacheHit">是否命中缓存</param>
+            <param name="assembly">程序集，默认为调用者</param>
+            <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
+            <exception cref="T:System.ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
+            <exception cref="T:System.InvalidOperationException">实例对象为空、模式选择不正确</exception>
+        </member>
+        <member name="M:ExprHelper.CreateAccessorsByExpressionTree``1(System.Reflection.MemberInfo,System.Object)">
+            <summary>
+            创建 getter/setter
+            </summary>
+        </member>
+        <member name="M:ExprHelper.CreateAccessorsByEmit``1(System.Reflection.MemberInfo,System.Object)">
+            <summary>
+            使用 DynamicMethod + IL Emit 创建 getter/setter
+            </summary>
+        </member>
+        <member name="M:ExprHelper.ClearAssemblyCache(System.Reflection.Assembly)">
+            <summary>
+            清理某个 Assembly 的缓存
+            </summary>
+        </member>
+        <member name="M:ExprHelper.ClearAll">
+            <summary>
+            清理所有缓存
+            </summary>
+        </member>
+    </members>
+</doc>

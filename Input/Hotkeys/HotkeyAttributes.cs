@@ -113,7 +113,7 @@ public sealed class UIHotkeyAttribute(
     public JmcKeyModifiers DefaultModifiers { get; set; }
 
     /// <summary>
-    /// 默认手柄输入 Action 名称。
+    /// 默认手柄输入 Action 名称，由于实际一般使用Steam Input，建议留空。
     /// </summary>
     public string DefaultController { get; set; } = string.Empty;
 

@@ -6,6 +6,8 @@
 
 JmcModLib 的设计目标是让不同 C# 游戏的前置库尽量共享一套接入心智：子 MOD 入口负责注册，配置项通过 Attribute 自动扫描，运行期功能通过少量工具类访问。
 
+从 `1.0.90` 开始，JML 发布目录会随 `JmcModLib.Runtime.dll` 一起生成 `JmcModLib.Runtime.xml`。子 MOD 通过 `JmcModLib.Sts2.props` 或直接引用 Runtime DLL 时，VS 可以读取该 XML 文档并显示 JML 公开 API 的 IntelliSense 注释。
+
 ## 目录
 
 - 快速开始

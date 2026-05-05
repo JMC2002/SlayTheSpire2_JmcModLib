@@ -7,6 +7,8 @@
     <LangVersion>latest</LangVersion>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AssemblyName>JmcModLib</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
 
     <!-- Mod 基础信息 -->
     <ModName>$(MSBuildProjectName)</ModName>
@@ -162,6 +164,7 @@ texture_format/etc2=false
 
     <!-- [2/4] 复制 DLL 到发布区：游戏加载 Bootstrap，子 MOD 引用 Runtime -->
     <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(PublishDir)\JmcModLib.Runtime.dll" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).xml" DestinationFiles="$(PublishDir)\JmcModLib.Runtime.xml" Condition="Exists('$(TargetDir)$(AssemblyName).xml')" />
     <Copy SourceFiles="$(BootstrapTargetPath)" DestinationFiles="$(PublishDir)\JmcModLib.dll" />
     <Copy SourceFiles="@(ReferenceCopyLocalPaths)" DestinationFolder="$(PublishDir)" Condition="'@(ReferenceCopyLocalPaths)' != ''" />
     <Copy SourceFiles="$(PkgNewtonsoft_Json)\lib\net6.0\Newtonsoft.Json.dll" DestinationFolder="$(PublishDir)" Condition="Exists('$(PkgNewtonsoft_Json)\lib\net6.0\Newtonsoft.Json.dll')" />
