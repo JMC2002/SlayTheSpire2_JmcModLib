@@ -12,14 +12,12 @@ namespace JmcModLib.Core;
 /// <remarks>
 /// <para>
 /// 注册时会为目标程序集启用 JML 默认服务，包括按程序集隔离的 <see cref="ModLogger"/>、
-/// 配置管理器和 Attribute 扫描管线。子 MOD 通常只需要在入口处调用一次
-/// <see cref="Register(bool, string, string?, string?, Assembly?)"/>，最后通过
-/// <see cref="RegistryBuilder.Done"/> 完成扫描。
+/// 配置管理器和 Attribute 扫描管线。子 MOD 通常只需要在入口处调用一次泛型
+/// <c>Register&lt;MainFile&gt;()</c>，即可自动完成上下文推断和 Attribute 扫描。
 /// </para>
 /// <example>
 /// <code><![CDATA[
-/// ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
-///     .Done();
+/// ModRegistry.Register<MainFile>();
 /// ]]></code>
 /// </example>
 /// </remarks>
@@ -81,7 +79,7 @@ public static class ModRegistry
     /// <returns>延迟完成时返回构建器；立即完成时返回 <see langword="null"/>。</returns>
     /// <example>
     /// <code><![CDATA[
-    /// ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
+    /// ModRegistry.Register(true, "CompatMod", "Compat Mod", "1.0.0")?
     ///     .RegisterButton("重载配置", ReloadConfig, "重载")
     ///     .Done();
     /// ]]></code>
@@ -140,57 +138,53 @@ public static class ModRegistry
     }
 
     /// <summary>
-    /// 使用类型 <typeparamref name="T"/> 所在程序集初始化注册上下文。
+    /// 使用类型 <typeparamref name="T"/> 所在程序集注册 MOD，并立即完成注册和 Attribute 扫描。
     /// </summary>
     /// <typeparam name="T">位于目标 MOD 程序集中的任意类型，常用入口 <c>MainFile</c>。</typeparam>
-    /// <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
-    /// <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
-    /// <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
-    /// <returns>用于继续设置并完成注册的构建器。</returns>
     /// <remarks>
-    /// 该方法承接旧版独立启动包装的 <c>Init&lt;T&gt;</c> 用法，但入口统一在 <see cref="ModRegistry"/> 下。
+    /// MOD 标识优先从 STS2 manifest 读取，其次回退到程序集名称。显示名和版本继续使用 manifest/assembly 元数据回退。
     /// </remarks>
     /// <example>
     /// <code><![CDATA[
-    /// ModRegistry.Init<MainFile>(VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)
-    ///     .Done();
+    /// ModRegistry.Register<MainFile>();
     /// ]]></code>
     /// </example>
-    public static RegistryBuilder Init<T>(string modId, string? displayName = null, string? version = null)
+    public static void Register<T>()
     {
-        return Init(typeof(T).Assembly, modId, displayName, version);
+        _ = Register<T>(deferredCompletion: false);
     }
 
     /// <summary>
-    /// 使用指定程序集初始化注册上下文。
-    /// </summary>
-    /// <param name="assembly">目标 MOD 程序集。</param>
-    /// <param name="modId">MOD 的稳定标识，通常与 manifest 的 <c>id</c> 一致。</param>
-    /// <param name="displayName">显示名称；留空时优先从 manifest 或程序集名称回退读取。</param>
-    /// <param name="version">版本号；留空时优先从 manifest 或程序集版本回退读取。</param>
-    /// <returns>用于继续设置并完成注册的构建器。</returns>
-    public static RegistryBuilder Init(Assembly assembly, string modId, string? displayName = null, string? version = null)
-    {
-        ArgumentNullException.ThrowIfNull(assembly);
-        return Register(modId, displayName, version, assembly);
-    }
-
-    /// <summary>
-    /// 使用类型 <typeparamref name="T"/> 所在程序集初始化注册上下文，并从程序集名称推断 MOD 标识。
+    /// 使用类型 <typeparamref name="T"/> 所在程序集注册 MOD，并按是否延迟完成返回链式构建器。
     /// </summary>
     /// <typeparam name="T">位于目标 MOD 程序集中的任意类型，常用入口 <c>MainFile</c>。</typeparam>
-    /// <returns>用于继续设置并完成注册的构建器。</returns>
+    /// <param name="deferredCompletion">
+    /// 为 <see langword="true"/> 时返回构建器，调用方可以在 <see cref="RegistryBuilder.Done"/> 前注册按钮或设置自定义存储；
+    /// 为 <see langword="false"/> 时立即完成注册并返回 <see langword="null"/>。
+    /// </param>
+    /// <returns>延迟完成时返回构建器；立即完成时返回 <see langword="null"/>。</returns>
     /// <example>
     /// <code><![CDATA[
-    /// ModRegistry.Init<MainFile>()
+    /// ModRegistry.Register<MainFile>(true)?
+    ///     .RegisterButton("重载配置", ReloadConfig, "重载")
     ///     .Done();
     /// ]]></code>
     /// </example>
-    public static RegistryBuilder Init<T>()
+    public static RegistryBuilder? Register<T>(bool deferredCompletion)
     {
         Assembly assembly = typeof(T).Assembly;
-        string modId = assembly.GetName().Name ?? typeof(T).Name;
-        return Init(assembly, modId);
+        RegistryBuilder builder = Register(
+            ResolveInferredModId(assembly),
+            displayName: null,
+            version: null,
+            assembly: assembly);
+        if (deferredCompletion)
+        {
+            return builder;
+        }
+
+        builder.Done();
+        return null;
     }
 
     /// <summary>
@@ -430,6 +424,17 @@ public static class ModRegistry
         if (!string.IsNullOrWhiteSpace(modId))
         {
             return modId.Trim();
+        }
+
+        return assembly.GetName().Name ?? VersionInfo.GetName(assembly);
+    }
+
+    private static string ResolveInferredModId(Assembly assembly)
+    {
+        string? manifestId = ModRuntime.GetManifestId(assembly);
+        if (!string.IsNullOrWhiteSpace(manifestId))
+        {
+            return manifestId.Trim();
         }
 
         return assembly.GetName().Name ?? VersionInfo.GetName(assembly);

@@ -10,8 +10,7 @@ public partial class MainFile : Node
 {
     public static void Initialize()
     {
-        ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
-            .Done();
+        ModRegistry.Register<MainFile>();
 
         ModLogger.Info("======================================");
         ModLogger.Info($" {VersionInfo.Name} Mod 正在启动...");

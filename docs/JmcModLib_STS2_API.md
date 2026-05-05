@@ -1,6 +1,6 @@
 # JmcModLib STS2 Interface Guide
 
-版本基准：JmcModLib 1.0.92
+版本基准：JmcModLib 1.0.95
 
 本文档面向使用 JmcModLib 开发《Slay the Spire 2》子 MOD 的场景，重点说明稳定入口、推荐写法、配置 UI Attribute、日志、热键、本地化、存储与扩展接口。
 
@@ -19,7 +19,6 @@ JmcModLib 的设计目标是让不同 C# 游戏的前置库尽量共享一套接
 - 预制件
 - 本地化
 - 配置存储
-- 依赖检测
 - 反射与访问器
 - 运行时信息
 - 工作流程图
@@ -38,7 +37,7 @@ flowchart TD
     A2 --> A3["调用 JmcModLib.MainFile.Initialize"]
     A3 --> A4["STS2 加载子 MOD DLL"]
     A4 --> B["调用子 MOD 的 ModInitializer"]
-    B --> C["ModRegistry.Register / Init"]
+    B --> C["ModRegistry.Register"]
     C --> D["自动启用 ModLogger / ConfigManager / AttributeRouter"]
     D --> D1["RegistryBuilder 链式补充<br/>WithConfigStorage / RegisterButton 等"]
     D1 --> E["Done() 完成注册"]
@@ -93,7 +92,7 @@ flowchart TD
 
 核心可以理解为两条主线：
 
-- 启动线：`Register/Init -> Done -> Attribute 扫描 -> 注册配置/按钮/热键`。
+- 启动线：`Register<MainFile>() -> Attribute 扫描 -> 注册配置/按钮/热键`，或 `Register<MainFile>(true) -> Done -> Attribute 扫描`。
 - 运行线：`设置 UI 修改配置 -> 写回字段并保存`，以及 `输入中继捕获热键 -> 调用绑定方法`。
 
 ## UML 结构图
@@ -105,6 +104,8 @@ classDiagram
     direction LR
 
     class ModRegistry {
+        +Register~T~() void
+        +Register~T~(deferredCompletion) RegistryBuilder?
         +Register(modId, displayName, version, assembly) RegistryBuilder
         +Register(deferredCompletion, modId, displayName, version, assembly) RegistryBuilder?
         +Register(deferredCompletion, modInfo, displayName, version, assembly) RegistryBuilder?
@@ -347,14 +348,6 @@ classDiagram
         +Flush(assembly) void
     }
 
-    class ModDependencyChecker {
-        +RequireMethod(methodName, parameterTypes) ModDependencyChecker
-        +Check() ModDependencyResult
-        +IsAvailable() bool
-        +TryInvoke(methodName, instance, result, args) bool
-        +TryInvokeVoid(methodName, instance, args) bool
-    }
-
     class MemberAccessor {
         +Get(type, memberName) MemberAccessor
         +GetAll(type) IEnumerable
@@ -405,7 +398,6 @@ classDiagram
     UIHotkeyAttribute --> JmcHotkeyManager : registers action
     JmcHotkeyManager --> JmcKeyBinding : matches input
 
-    ModDependencyChecker --> MethodAccessor : caches methods
     ConfigManager --> MemberAccessor : reads and writes config members
     ConfigManager --> MethodAccessor : invokes OnChanged
     ButtonEntry --> MethodAccessor : invokes button method
@@ -463,8 +455,7 @@ public partial class MainFile : Node
 {
     public static void Initialize()
     {
-        ModRegistry.Register(true, "MyMod", "My Mod", "1.0.0")?
-            .Done();
+        ModRegistry.Register<MainFile>();
 
         ModLogger.Info("MyMod initialized.");
     }
@@ -473,21 +464,19 @@ public partial class MainFile : Node
 
 ### 推荐入口风格
 
-为了贴近旧版 JmcModLib/Duckov 的使用习惯，推荐子 MOD 使用 `ModRegistry.Register(...)?....Done()` 链式入口。
+推荐子 MOD 使用 `ModRegistry.Register<MainFile>();` 作为入口。`MainFile` 用于定位调用方程序集，JML 会自动从 STS2 manifest/assembly 元数据推断 MOD 标识、显示名和版本，并立即完成 Attribute 扫描。
 
 ```csharp
-ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
-    .Done();
+ModRegistry.Register<MainFile>();
 ```
 
-如果不想显式传版本号，也可以让 JML 从 STS2 的 manifest/assembly 元数据回退读取：
+需要在扫描前补充注册按钮或自定义配置存储时，使用同名泛型流式入口：
 
 ```csharp
-ModRegistry.Init<MainFile>()
+ModRegistry.Register<MainFile>(true)?
+    .RegisterButton("重载配置", ReloadConfig, "重载")
     .Done();
 ```
-
-`ModRegistry.Init` 承接原先独立启动包装的轻量用法，但入口统一在 `ModRegistry` 下，减少子 MOD 需要记忆的类型数量。
 
 ## 注册入口
 
@@ -502,7 +491,35 @@ global using JmcModLib.Utils;
 
 因此多数子 MOD 可以直接调用 `ModRegistry` 和 `ModLogger`。
 
-### ModRegistry.Register
+### 推荐入口
+
+```csharp
+public static void Register<T>()
+```
+
+立即注册类型 `T` 所在程序集，并自动完成默认日志、配置、Attribute 扫描初始化与 `Done()`。
+
+```csharp
+ModRegistry.Register<MainFile>();
+```
+
+### 泛型流式入口
+
+```csharp
+public static RegistryBuilder? Register<T>(bool deferredCompletion)
+```
+
+当 `deferredCompletion` 为 `true` 时，返回 builder，允许在 `.Done()` 前注册按钮或设置自定义配置存储；为 `false` 时等价于 `Register<T>()`，自动完成并返回 `null`。
+
+```csharp
+ModRegistry.Register<MainFile>(true)?
+    .RegisterButton("重载配置", ReloadConfig, "重载")
+    .Done();
+```
+
+### 显式元数据入口
+
+显式元数据入口用于特殊兼容场景；普通子 MOD 不需要手动传 `VersionInfo.Name` 或版本号。
 
 ```csharp
 public static RegistryBuilder Register(
@@ -512,17 +529,6 @@ public static RegistryBuilder Register(
     Assembly? assembly = null)
 ```
 
-立即返回 `RegistryBuilder`，最后需要 `.Done()` 完成注册并触发 Attribute 扫描。
-
-```csharp
-ModRegistry.Register("BetterMap", "BetterMap", "1.2.0")
-    .Done();
-```
-
-注册时会自动为目标程序集启用默认 `ModLogger`、`ConfigManager` 和 `AttributeRouter`。子 MOD 通常不需要再手动启用日志或配置扫描。
-
-### 延迟完成注册
-
 ```csharp
 public static RegistryBuilder? Register(
     bool deferredCompletion,
@@ -530,14 +536,6 @@ public static RegistryBuilder? Register(
     string? displayName = null,
     string? version = null,
     Assembly? assembly = null)
-```
-
-当 `deferredCompletion` 为 `true` 时，返回 builder，允许继续链式注册；为 `false` 时会自动 `.Done()`，返回 `null`。
-
-```csharp
-ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
-    .RegisterButton("重载配置", ReloadConfig, "重载")
-    .Done();
 ```
 
 ### 通过 modInfo 注册
@@ -559,21 +557,6 @@ JML 会尝试从 `modInfo` 中读取这些字段或属性：
 
 这用于兼容不同游戏或旧版 JML 的 `VersionInfo.modInfo` 风格。
 
-### ModRegistry.Init
-
-```csharp
-ModRegistry.Init<T>(string modId, string? displayName = null, string? version = null)
-ModRegistry.Init(Assembly assembly, string modId, string? displayName = null, string? version = null)
-ModRegistry.Init<T>()
-```
-
-`Init` 是更自动化的入口包装：它使用指定类型或程序集来确定注册程序集，并转到 `ModRegistry.Register`。需要最少参数时可以使用：
-
-```csharp
-ModRegistry.Init<MainFile>()
-    .Done();
-```
-
 ### RegistryBuilder
 
 常用方法：
@@ -586,7 +569,7 @@ RegisterButton(...)
 Done()
 ```
 
-`WithConfigStorage(...)` 只负责替换当前 MOD 的配置存储；默认配置系统会在 `ModRegistry.Register`/`Init` 时自动初始化。
+`WithConfigStorage(...)` 只负责替换当前 MOD 的配置存储；默认配置系统会在 `ModRegistry.Register` 时自动初始化。
 
 `Done()` 会触发 `ModRegistry.OnRegistered`，AttributeRouter 也会在这里扫描子 MOD assembly。
 
@@ -608,7 +591,7 @@ ModLogger.RegisterAssembly(
     includeExceptionDetails: true)
 ```
 
-`ModRegistry.Register` 和 `ModRegistry.Init` 会自动为当前 MOD 注册默认日志配置。只有需要覆盖最低等级、日志类型或异常输出格式时，才建议显式调用 `ModLogger.RegisterAssembly(...)`。
+`ModRegistry.Register` 会自动为当前 MOD 注册默认日志配置。只有需要覆盖最低等级、日志类型或异常输出格式时，才建议显式调用 `ModLogger.RegisterAssembly(...)`。
 
 ### 输出日志
 
@@ -660,7 +643,7 @@ public enum LogPrefixFlags
 
 命名空间：`JmcModLib.Config`
 
-JML 的配置系统以 `ConfigAttribute` 标记静态字段或静态属性，通过 `ModRegistry.Register(...).Done()` 或 `ModRegistry.Init(...).Done()` 自动扫描并注册。
+JML 的配置系统以 `ConfigAttribute` 标记静态字段或静态属性，通过 `ModRegistry.Register<MainFile>()` 或流式入口的 `.Done()` 自动扫描并注册。
 
 配置值变化时默认会：
 
@@ -1537,7 +1520,7 @@ public interface IConfigStorage
 注册：
 
 ```csharp
-ModRegistry.Register(true, "MyMod")?
+ModRegistry.Register<MainFile>(true)?
     .WithConfigStorage(new MyConfigStorage())
     .Done();
 ```
@@ -1546,59 +1529,6 @@ ModRegistry.Register(true, "MyMod")?
 
 ```csharp
 ConfigManager.SetStorage(new NewtonsoftConfigStorage(customRoot));
-```
-
-## 依赖检测
-
-命名空间：`JmcModLib.Utils`
-
-JML 提供 `ModDependencyChecker` 用于检查另一个 MOD 是否加载、版本是否满足、某些公开方法是否存在。
-
-### 基础示例
-
-```csharp
-var checker = ModDependencyExtensions
-    .ForMod("OtherMod", "OtherMod.Api", "1.2.0")
-    .RequireMethod("DoSomething", [typeof(int)]);
-
-ModDependencyResult result = checker.Check();
-if (!result.IsFullyAvailable)
-{
-    ModLogger.Warn(result.GetSummary());
-    return;
-}
-
-checker.TryInvokeVoid("DoSomething", instance: null, 42);
-```
-
-### ModDependencyChecker API
-
-```csharp
-new ModDependencyChecker(string modId, string typeName, Version? requiredVersion = null)
-RequireMethod(string methodName, Type[]? parameterTypes = null)
-RequireMethods(params MethodSignature[] methods)
-Check()
-IsAvailable()
-GetMethod(string methodName)
-TryInvoke(string methodName, object? instance, out object? result, params object?[] args)
-TryInvokeVoid(string methodName, object? instance, params object?[] args)
-ResetCache()
-```
-
-### ModDependencyResult
-
-```csharp
-IsLoaded
-VersionMatch
-AllMethodsAvailable
-ActualVersion
-MissingMethods
-ModType
-Assembly
-Mod
-Manifest
-IsFullyAvailable
-GetSummary()
 ```
 
 ## 反射与访问器
@@ -1744,12 +1674,12 @@ if (ModRegistry.TryGetContext(out ModContext? context))
 
 命名空间：`JmcModLib.Core.AttributeRouter`
 
-`ModRegistry.Register` 和 `ModRegistry.Init` 会自动初始化 AttributeRouter。通常子 MOD 不需要直接使用。
+`ModRegistry.Register` 会自动初始化 AttributeRouter。通常子 MOD 不需要直接使用。
 
 流程：
 
-1. 子 MOD 调用 `ModRegistry.Register(...).Done()` 或 `ModRegistry.Init<MainFile>().Done()`。
-2. `Done()` 触发 `ModRegistry.OnRegistered`。
+1. 子 MOD 调用 `ModRegistry.Register<MainFile>()`，或调用 `ModRegistry.Register<MainFile>(true)?...Done()`。
+2. 自动入口内部或流式入口的 `Done()` 触发 `ModRegistry.OnRegistered`。
 3. AttributeRouter 扫描该 assembly 的类型、方法、字段、属性。
 4. 发现并分发 Attribute：
    - `[Config]`

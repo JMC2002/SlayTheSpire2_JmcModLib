@@ -17,7 +17,7 @@ namespace JmcModLib.Core;
 /// </para>
 /// <example>
 /// <code><![CDATA[
-/// ModRegistry.Register(true, VersionInfo.Name, VersionInfo.Name, VersionInfo.Version)?
+/// ModRegistry.Register<MainFile>(true)?
 ///     .RegisterButton("重载配置", ReloadConfig, "重载")
 ///     .Done();
 /// ]]></code>
@@ -65,7 +65,7 @@ public sealed class RegistryBuilder
     /// </remarks>
     /// <example>
     /// <code><![CDATA[
-    /// ModRegistry.Register(true, VersionInfo.Name)?
+    /// ModRegistry.Register<MainFile>(true)?
     ///     .WithConfigStorage(new NewtonsoftConfigStorage(customRoot))
     ///     .Done();
     /// ]]></code>
@@ -96,7 +96,7 @@ public sealed class RegistryBuilder
     /// <returns>当前构建器，用于继续链式调用。</returns>
     /// <example>
     /// <code><![CDATA[
-    /// ModRegistry.Register(true, VersionInfo.Name)?
+    /// ModRegistry.Register<MainFile>(true)?
     ///     .RegisterButton(
     ///         out string reloadKey,
     ///         "重载配置",
