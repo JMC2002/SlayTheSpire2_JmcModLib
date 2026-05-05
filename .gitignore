@@ -367,6 +367,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-#godot
-.godot/
+# Godot generated editor/import cache
+**/.godot/
 *.import
