@@ -13,6 +13,7 @@
     <!-- Mod 基础信息 -->
     <ModName>$(MSBuildProjectName)</ModName>
     <Author>JMC</Author>
+    <PackageLicenseExpression>LGPL-3.0-only</PackageLicenseExpression>
 
     <!-- 路径配置 -->
     <SteamLibraryPath>D:\SteamLibrary\steamapps\</SteamLibraryPath>
@@ -38,6 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AssemblyMetadata Include="License" Value="$(PackageLicenseExpression)" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" GeneratePathProperty="true" />
   </ItemGroup>
 
