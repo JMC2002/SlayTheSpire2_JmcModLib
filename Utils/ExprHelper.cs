@@ -332,7 +332,7 @@ public static class ExprHelper
                         var getterMethod = new DynamicMethod(
                             $"get_{fi.Name}_{Guid.NewGuid():N}",
                             typeof(T),
-                            new[] { typeof(object) },
+                            [typeof(object)],
                             typeof(object).Module,
                             true);
                         var il = getterMethod.GetILGenerator();
