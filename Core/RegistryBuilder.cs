@@ -1,8 +1,8 @@
-using System.Reflection;
 using JmcModLib.Config;
 using JmcModLib.Config.Storage;
 using JmcModLib.Config.UI;
 using MegaCrit.Sts2.Core.Logging;
+using System.Reflection;
 
 namespace JmcModLib.Core;
 

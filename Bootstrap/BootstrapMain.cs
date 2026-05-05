@@ -1,10 +1,10 @@
+using MegaCrit.Sts2.Core.Logging;
+using MegaCrit.Sts2.Core.Modding;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
 using System.Text.Json;
-using MegaCrit.Sts2.Core.Logging;
-using MegaCrit.Sts2.Core.Modding;
 
 namespace JmcModLib.Bootstrap;
 

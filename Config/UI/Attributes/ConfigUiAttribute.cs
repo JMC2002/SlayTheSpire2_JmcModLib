@@ -1,7 +1,6 @@
-using System.Reflection;
 using Godot;
-using JmcModLib.Config;
 using MegaCrit.Sts2.Core.Logging;
+using System.Reflection;
 
 namespace JmcModLib.Config.UI;
 

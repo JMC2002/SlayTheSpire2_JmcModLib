@@ -1,13 +1,12 @@
-using System.Globalization;
-using System.Reflection;
 using Godot;
-using JmcModLib.Config;
 using JmcModLib.Config.Entry;
 using JmcModLib.Config.Serialization;
 using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
+using System.Globalization;
+using System.Reflection;
 
 namespace JmcModLib.Config.UI;
 
@@ -98,9 +97,9 @@ internal sealed class ModConfigPopup : Control, IScreenContext
         {
             BbcodeEnabled = true,
             FitContent = true,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Text = $"[gold]{ModSettingsText.ConfigTitle(GetModName())}[/gold]"
         };
-        titleLabel.Text = $"[gold]{ModSettingsText.ConfigTitle(GetModName())}[/gold]";
         root.AddChild(titleLabel);
 
         subtitleLabel = new RichTextLabel
@@ -657,30 +656,15 @@ internal sealed class ModConfigPopup : Control, IScreenContext
 
     private void RefreshStaticText()
     {
-        if (titleLabel != null)
-        {
-            titleLabel.Text = $"[gold]{ModSettingsText.ConfigTitle(GetModName())}[/gold]";
-        }
+        titleLabel?.Text = $"[gold]{ModSettingsText.ConfigTitle(GetModName())}[/gold]";
 
-        if (subtitleLabel != null)
-        {
-            subtitleLabel.Text = BuildSubtitle();
-        }
+        subtitleLabel?.Text = BuildSubtitle();
 
-        if (hintLabel != null)
-        {
-            hintLabel.Text = $"[color=#aab7bc]{ModSettingsText.ChangesSavedImmediately()}[/color]";
-        }
+        hintLabel?.Text = $"[color=#aab7bc]{ModSettingsText.ChangesSavedImmediately()}[/color]";
 
-        if (resetButton != null)
-        {
-            resetButton.Text = ModSettingsText.Reset();
-        }
+        resetButton?.Text = ModSettingsText.Reset();
 
-        if (closeButton != null)
-        {
-            closeButton.Text = ModSettingsText.Close();
-        }
+        closeButton?.Text = ModSettingsText.Close();
     }
 
     private static bool IsNumericType(Type type)

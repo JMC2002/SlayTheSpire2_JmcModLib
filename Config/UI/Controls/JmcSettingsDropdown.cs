@@ -1,13 +1,9 @@
-using MegaCrit.Sts2.addons.mega_text;
-using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using MegaCrit.Sts2.Core.Nodes.Combat;
-using MegaCrit.Sts2.Core.ControllerInput;
-using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
-using MegaCrit.Sts2.Core.Nodes.Screens.ModdingScreen;
-using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
 using Godot;
-using JmcModLib.Reflection;
-using JmcModLib.Utils;
+using MegaCrit.Sts2.addons.mega_text;
+using MegaCrit.Sts2.Core.Nodes.Combat;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
+using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
 
 namespace JmcModLib.Config.UI;
 
@@ -16,9 +12,8 @@ internal readonly record struct JmcDropdownOption(string Text, string Value);
 internal sealed class JmcDropdownItem : NDropdownItem
 {
     private string text = string.Empty;
-    private string value = string.Empty;
 
-    public string Value => value;
+    public string Value { get; private set; } = string.Empty;
 
     public static JmcDropdownItem Create(NDropdownItem template, string text, string value)
     {
@@ -26,7 +21,7 @@ internal sealed class JmcDropdownItem : NDropdownItem
         {
             Name = "JmcDropdownItem",
             text = text,
-            value = value
+            Value = value
         };
         NativeTemplateCloner.ApplyControlTemplate(template, item);
         item.FocusMode = FocusModeEnum.All;

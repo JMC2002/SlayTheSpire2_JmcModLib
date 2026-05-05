@@ -1,6 +1,5 @@
-using System.Reflection;
 using JmcModLib.Config.Entry;
-using JmcModLib.Utils;
+using System.Reflection;
 
 namespace JmcModLib.Config;
 

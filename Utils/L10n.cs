@@ -1,7 +1,7 @@
-using System.Reflection;
-using System.Text.Json;
 using Godot;
 using MegaCrit.Sts2.Core.Localization;
+using System.Reflection;
+using System.Text.Json;
 
 namespace JmcModLib.Utils;
 

@@ -56,7 +56,7 @@ internal sealed class SteamInputBackend : IJmcInputBackend
             foreach (JmcInputActionDescriptor action in actions)
             {
                 if (!actionHandles.TryGetValue(action.ActionId, out InputDigitalActionHandle_t actionHandle)
-                    || actionHandle.Equals(default(InputDigitalActionHandle_t)))
+                    || actionHandle.Equals(default))
                 {
                     continue;
                 }
@@ -118,7 +118,7 @@ internal sealed class SteamInputBackend : IJmcInputBackend
             {
                 InputDigitalActionHandle_t handle = SteamInput.GetDigitalActionHandle(action.ActionId);
                 actionHandles[action.ActionId] = handle;
-                if (handle.Equals(default(InputDigitalActionHandle_t)))
+                if (handle.Equals(default))
                 {
                     missingCount++;
                     ModLogger.Warn($"Steam Input 未返回 JML 动作句柄：{action.ActionId}", action.Assembly);

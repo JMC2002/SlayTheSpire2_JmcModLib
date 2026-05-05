@@ -1,11 +1,5 @@
-using System.Globalization;
-using JmcModLib.Config;
-using JmcModLib.Config.Entry;
-using JmcModLib.Config.Serialization;
 using Godot;
-using MegaCrit.Sts2.addons.mega_text;
-using MegaCrit.Sts2.Core.Modding;
-using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
+using JmcModLib.Config.Entry;
 
 namespace JmcModLib.Config.UI;
 

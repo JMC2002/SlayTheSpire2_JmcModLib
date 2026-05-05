@@ -1,8 +1,8 @@
-using System.Reflection;
 using Godot;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Multiplayer;
+using System.Reflection;
 
 namespace JmcModLib.Prefabs;
 

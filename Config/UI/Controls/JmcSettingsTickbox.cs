@@ -1,13 +1,8 @@
-using MegaCrit.Sts2.addons.mega_text;
-using MegaCrit.Sts2.Core.Nodes.CommonUi;
-using MegaCrit.Sts2.Core.Nodes.Combat;
-using MegaCrit.Sts2.Core.ControllerInput;
-using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
-using MegaCrit.Sts2.Core.Nodes.Screens.ModdingScreen;
-using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
 using Godot;
-using JmcModLib.Reflection;
-using JmcModLib.Utils;
+using MegaCrit.Sts2.Core.Nodes.Combat;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
+using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
 
 namespace JmcModLib.Config.UI;
 

@@ -1,5 +1,5 @@
-using System.Reflection;
 using JmcModLib.Reflection;
+using System.Reflection;
 
 namespace JmcModLib.Core.AttributeRouter;
 

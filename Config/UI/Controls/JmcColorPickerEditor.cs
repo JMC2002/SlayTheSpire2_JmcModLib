@@ -95,9 +95,9 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
             FocusMode = FocusModeEnum.All,
             CustomMinimumSize = new Vector2(SwatchSize, SwatchSize),
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
-            TooltipText = JmcColorValue.ToHex(color, attribute.AllowAlpha)
+            TooltipText = JmcColorValue.ToHex(color, attribute.AllowAlpha),
+            Modulate = NormalizeAlpha(color, attribute.AllowAlpha)
         };
-        button.Modulate = NormalizeAlpha(color, attribute.AllowAlpha);
         button.Pressed += () => ApplyValue(color);
         return button;
     }
@@ -175,15 +175,9 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
 
     private void UpdateDisplay()
     {
-        if (preview != null)
-        {
-            preview.Color = value;
-        }
+        preview?.Color = value;
 
-        if (hexLabel != null)
-        {
-            hexLabel.Text = JmcColorValue.ToHex(value, attribute.AllowAlpha);
-        }
+        hexLabel?.Text = JmcColorValue.ToHex(value, attribute.AllowAlpha);
     }
 
     private static IReadOnlyList<Color> ResolvePresetColors(UIColorAttribute attribute)
@@ -243,8 +237,8 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
         float closeButtonHeight = MathF.Round(56f * layoutScale);
         float controlMinimumHeight = MathF.Round(MathF.Max(44f * layoutScale, fontSize * 1.85f));
         Vector2 pickerMinimumSize = new(
-            Math.Max(300f, width - margin * 2f),
-            Math.Max(240f, height - margin * 2f - closeButtonHeight - spacing));
+            Math.Max(300f, width - (margin * 2f)),
+            Math.Max(240f, height - (margin * 2f) - closeButtonHeight - spacing));
 
         return new PopupMetrics(
             popupSize,
@@ -490,7 +484,7 @@ internal sealed class JmcColorPickerEditor : HBoxContainer
         }
 
         float dpiScale = Math.Clamp(dpi / 96f, 1.0f, 4.0f);
-        return 1.0f + (MathF.Sqrt(dpiScale) - 1.0f) * 0.35f;
+        return 1.0f + ((MathF.Sqrt(dpiScale) - 1.0f) * 0.35f);
     }
 
     private static int ClampDimension(float preferred, float min, float max)

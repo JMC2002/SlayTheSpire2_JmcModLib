@@ -1,4 +1,3 @@
-using JmcModLib.Core;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Modding;

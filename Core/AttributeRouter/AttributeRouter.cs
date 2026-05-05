@@ -1,6 +1,6 @@
+using JmcModLib.Reflection;
 using System.Collections.Concurrent;
 using System.Reflection;
-using JmcModLib.Reflection;
 
 namespace JmcModLib.Core.AttributeRouter;
 

@@ -203,19 +203,13 @@ internal sealed class JmcKeybindButton : NButton
     protected override void OnFocus()
     {
         base.OnFocus();
-        if (bg != null)
-        {
-            bg.Visible = true;
-        }
+        bg?.Visible = true;
     }
 
     protected override void OnUnfocus()
     {
         base.OnUnfocus();
-        if (bg != null)
-        {
-            bg.Visible = isListening;
-        }
+        bg?.Visible = isListening;
     }
 
     private void ApplyValue(JmcKeyBinding binding)
@@ -234,15 +228,9 @@ internal sealed class JmcKeybindButton : NButton
 
     private void UpdateDisplay()
     {
-        if (inputLabel != null)
-        {
-            inputLabel.SetTextAutoSize(labelText);
-        }
+        inputLabel?.SetTextAutoSize(labelText);
 
-        if (keyBindingLabel != null)
-        {
-            keyBindingLabel.SetTextAutoSize(GetKeyboardText());
-        }
+        keyBindingLabel?.SetTextAutoSize(GetKeyboardText());
 
         if (controllerBindingIcon != null)
         {
@@ -256,10 +244,7 @@ internal sealed class JmcKeybindButton : NButton
                 : Colors.White;
         }
 
-        if (bg != null)
-        {
-            bg.Visible = isListening || HasFocus();
-        }
+        bg?.Visible = isListening || HasFocus();
     }
 
     private string GetKeyboardText()

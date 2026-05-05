@@ -1,9 +1,9 @@
-using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using JmcModLib.Config;
 using JmcModLib.Config.Entry;
 using JmcModLib.Config.UI;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace JmcModLib.Input;
 

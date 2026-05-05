@@ -1,4 +1,3 @@
-using System.Reflection;
 using Godot;
 using JmcModLib.Config.Entry;
 using JmcModLib.Core.AttributeRouter;
@@ -8,6 +7,7 @@ using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Debug;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
+using System.Reflection;
 
 namespace JmcModLib.Config.UI;
 

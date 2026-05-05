@@ -1,9 +1,9 @@
+using Godot;
+using JmcModLib.Config.Serialization;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Godot;
-using JmcModLib.Config.Serialization;
 
 namespace JmcModLib.Config.Storage;
 

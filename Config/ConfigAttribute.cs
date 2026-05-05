@@ -1,5 +1,5 @@
-using System.Reflection;
 using MegaCrit.Sts2.Core.Logging;
+using System.Reflection;
 
 namespace JmcModLib.Config;
 

@@ -1,6 +1,6 @@
-using System.Reflection;
 using JmcModLib.Reflection;
 using MegaCrit.Sts2.Core.Modding;
+using System.Reflection;
 
 namespace JmcModLib.Utils;
 

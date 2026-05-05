@@ -1,7 +1,4 @@
-﻿using JmcModLib.Utils;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace JmcModLib.Reflection
 {
@@ -32,12 +29,12 @@ namespace JmcModLib.Reflection
         /// <summary>
         /// 获取或创建 TypeAccessor（会缓存）
         /// </summary>
-    public static TypeAccessor Get(Type type)
-    {
-        ArgumentNullException.ThrowIfNull(type);
+        public static TypeAccessor Get(Type type)
+        {
+            ArgumentNullException.ThrowIfNull(type);
 
-        return GetOrCreate(type, t => new TypeAccessor(t));
-    }
+            return GetOrCreate(type, t => new TypeAccessor(t));
+        }
 
         /// <summary>
         /// 泛型版本（会缓存）

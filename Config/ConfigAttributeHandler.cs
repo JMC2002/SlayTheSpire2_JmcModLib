@@ -1,8 +1,8 @@
-using System.Reflection;
 using JmcModLib.Config.Entry;
 using JmcModLib.Config.UI;
 using JmcModLib.Core.AttributeRouter;
 using JmcModLib.Reflection;
+using System.Reflection;
 
 namespace JmcModLib.Config;
 

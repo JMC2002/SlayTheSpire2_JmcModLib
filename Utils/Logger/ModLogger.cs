@@ -1,7 +1,6 @@
+using MegaCrit.Sts2.Core.Logging;
 using System.Collections.Concurrent;
 using System.Reflection;
-using JmcModLib.Core;
-using MegaCrit.Sts2.Core.Logging;
 
 namespace JmcModLib.Utils;
 
@@ -43,7 +42,7 @@ public static partial class ModLogger
 
     private static readonly object NativeLoggerLock = typeof(Logger)
         .GetField("_lockObj", BindingFlags.NonPublic | BindingFlags.Static)?
-        .GetValue(null) as object ?? new object();
+        .GetValue(null) ?? new object();
 
     private static readonly ConcurrentDictionary<Assembly, LoggerHandle> Loggers = new();
     private static readonly ConcurrentDictionary<Assembly, AssemblyLogConfiguration> Configurations = new();

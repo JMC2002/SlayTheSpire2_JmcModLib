@@ -1,8 +1,7 @@
+using JmcModLib.Config.Entry;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using JmcModLib.Config.Entry;
-using JmcModLib.Utils;
 
 namespace JmcModLib.Config.UI;
 

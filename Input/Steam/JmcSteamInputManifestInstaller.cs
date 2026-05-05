@@ -1,8 +1,8 @@
-using System.Text;
 using Godot;
 using MegaCrit.Sts2.Core.ControllerInput;
 using MegaCrit.Sts2.Core.Platform.Steam;
 using Steamworks;
+using System.Text;
 
 namespace JmcModLib.Input;
 
