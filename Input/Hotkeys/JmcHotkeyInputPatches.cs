@@ -1,5 +1,6 @@
 using Godot;
 using HarmonyLib;
+using JmcModLib.Input;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
@@ -59,6 +60,28 @@ internal static class JmcHotkeyInputPatchDispatcher
         catch (Exception ex)
         {
             ModLogger.Error("JmcModLib hotkey input bridge failed.", ex);
+        }
+    }
+}
+
+[HarmonyPatch(typeof(NControllerManager), nameof(NControllerManager._Process))]
+internal static class JmcHotkeyProcessPatch
+{
+    [HarmonyPostfix]
+    private static void Postfix()
+    {
+        if (!JmcHotkeyManager.IsInitialized)
+        {
+            return;
+        }
+
+        try
+        {
+            JmcInputManager.Process();
+        }
+        catch (Exception ex)
+        {
+            ModLogger.Error("JmcModLib input backend process failed.", ex);
         }
     }
 }

@@ -124,7 +124,7 @@ public sealed class UIHotkeyAttribute(
     public bool AllowKeyboard { get; set; } = true;
 
     /// <summary>
-    /// 是否允许在设置界面绑定手柄 Action。
+    /// 是否允许手柄绑定；Steam Input 可用时，JML 会为此热键生成 Steam Digital Action，实际手柄按键建议在 Steam 输入中绑定。
     /// </summary>
     public bool AllowController { get; set; }
 

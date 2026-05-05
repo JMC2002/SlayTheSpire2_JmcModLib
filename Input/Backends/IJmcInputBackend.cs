@@ -1,7 +1,7 @@
 namespace JmcModLib.Input;
 
 /// <summary>
-/// JML 内部输入后端的最小抽象，用于后续把 Godot Action、Steam Input 等来源统一接入热键系统。
+/// JML 内部输入后端的最小抽象，用于把 Godot Action、Steam Input 等来源统一接入热键系统。
 /// </summary>
 internal interface IJmcInputBackend
 {
@@ -11,9 +11,14 @@ internal interface IJmcInputBackend
     string Name { get; }
 
     /// <summary>
-    /// 初始化输入后端；当前结构整理阶段不会主动改变现有热键行为。
+    /// 初始化输入后端。
     /// </summary>
     void Initialize();
+
+    /// <summary>
+    /// 每帧轮询输入后端，并把逻辑动作变化分发给热键系统。
+    /// </summary>
+    void Process();
 
     /// <summary>
     /// 释放输入后端持有的运行时资源。

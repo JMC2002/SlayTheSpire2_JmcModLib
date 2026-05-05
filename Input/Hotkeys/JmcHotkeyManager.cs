@@ -2,6 +2,7 @@ using System.Reflection;
 using Godot;
 using JmcModLib.Config.Entry;
 using JmcModLib.Core.AttributeRouter;
+using JmcModLib.Input;
 using JmcModLib.Reflection;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Nodes;
@@ -38,6 +39,7 @@ public static class JmcHotkeyManager
         }
 
         ModRegistry.OnUnregistered += OnModUnregistered;
+        JmcInputManager.Initialize();
     }
 
     /// <summary>
@@ -214,6 +216,53 @@ public static class JmcHotkeyManager
         return handled;
     }
 
+    internal static bool HandleInputAction(string actionId, bool pressed, Viewport? viewport)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionId);
+
+        JmcHotkeyRegistration[] registrations;
+        lock (SyncRoot)
+        {
+            if (Registrations.Count == 0)
+            {
+                return false;
+            }
+
+            registrations = [.. Registrations.Values];
+        }
+
+        if (JmcKeybindButton.HasActiveListener || JmcKeybindButton.HasRecentCapture)
+        {
+            return false;
+        }
+
+        bool handled = false;
+        foreach (JmcHotkeyRegistration registration in registrations)
+        {
+            try
+            {
+                if (!registration.TryConsumeInputAction(actionId, pressed))
+                {
+                    continue;
+                }
+
+                registration.Invoke();
+                handled |= registration.Options.ConsumeInput;
+            }
+            catch (Exception ex)
+            {
+                ModLogger.Error($"Hotkey {registration.Key} failed.", ex, registration.Assembly);
+            }
+        }
+
+        if (handled)
+        {
+            viewport?.SetInputAsHandled();
+        }
+
+        return handled;
+    }
+
     private static void EnsureRelay()
     {
         if (relay is { } existing && !existing.IsQueuedForDeletion() && existing.IsInsideTree())
@@ -331,6 +380,7 @@ public static class JmcHotkeyManager
     private static void OnModUnregistered(ModContext context)
     {
         UnregisterAssembly(context.Assembly);
+        JmcInputActionRegistry.UnregisterAssembly(context.Assembly);
     }
 }
 
@@ -369,9 +419,15 @@ internal sealed class JmcHotkeyInputRelay : Node
         _ = JmcHotkeyManager.HandleInput(inputEvent, GetViewport());
     }
 
+    public override void _Process(double delta)
+    {
+        JmcInputManager.Process();
+    }
+
     public void ActivateProcessing()
     {
         ProcessMode = ProcessModeEnum.Always;
+        SetProcess(true);
         SetProcessInput(true);
         SetProcessUnhandledInput(true);
         SetProcessUnhandledKeyInput(true);
@@ -446,6 +502,40 @@ internal sealed class JmcHotkeyRegistration(
         action.Invoke();
     }
 
+    public bool TryConsumeInputAction(string actionId, bool pressed)
+    {
+        if (!JmcInputActionRegistry.IsHotkeyBoundToAction(Assembly, Key, actionId))
+        {
+            return false;
+        }
+
+        JmcKeyBinding binding = bindingGetter();
+        if (!binding.Enabled)
+        {
+            activePressId = null;
+            return false;
+        }
+
+        string pressId = $"steam:{actionId}";
+        if (!pressed)
+        {
+            if (activePressId == pressId)
+            {
+                activePressId = null;
+            }
+
+            return false;
+        }
+
+        if (activePressId == pressId || !TryConsumeDebounce())
+        {
+            return false;
+        }
+
+        activePressId = pressId;
+        return true;
+    }
+
     private bool TryConsumeDebounce()
     {
         ulong now = Time.GetTicksMsec();
@@ -481,7 +571,10 @@ internal sealed class JmcHotkeyRegistration(
 internal sealed class JmcHotkeyAttributeHandler : IAttributeHandler
 {
     public Action<Assembly, IReadOnlyList<ReflectionAccessorBase>>? Unregister => (assembly, _) =>
+    {
         JmcHotkeyManager.UnregisterAssembly(assembly);
+        JmcInputActionRegistry.UnregisterAssembly(assembly);
+    };
 
     public void Handle(Assembly assembly, ReflectionAccessorBase accessor, Attribute attribute)
     {
@@ -507,6 +600,11 @@ internal sealed class JmcHotkeyAttributeHandler : IAttributeHandler
                     hotkeyAttribute.ExactModifiers,
                     hotkeyAttribute.AllowEcho,
                     hotkeyAttribute.DebounceMs));
+            JmcInputActionRegistry.BindHotkeyToSourceMember(
+                assembly,
+                key,
+                bindingMember.DeclaringType,
+                bindingMember.Name);
         }
         catch (Exception ex)
         {
@@ -543,7 +641,10 @@ internal sealed class JmcHotkeyAttributeHandler : IAttributeHandler
 internal sealed class UIHotkeyAttributeHandler : IAttributeHandler
 {
     public Action<Assembly, IReadOnlyList<ReflectionAccessorBase>>? Unregister => (assembly, _) =>
+    {
         JmcHotkeyManager.UnregisterAssembly(assembly);
+        JmcInputActionRegistry.UnregisterAssembly(assembly);
+    };
 
     public void Handle(Assembly assembly, ReflectionAccessorBase accessor, Attribute attribute)
     {
@@ -587,6 +688,10 @@ internal sealed class UIHotkeyAttributeHandler : IAttributeHandler
                     hotkeyAttribute.ExactModifiers,
                     hotkeyAttribute.AllowEcho,
                     hotkeyAttribute.DebounceMs));
+            if (hotkeyAttribute.AllowController)
+            {
+                JmcInputActionRegistry.BindHotkeyToEntryKey(assembly, entryKey, entryKey);
+            }
         }
         catch (Exception ex)
         {

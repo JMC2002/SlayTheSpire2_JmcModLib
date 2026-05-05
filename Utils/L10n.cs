@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Godot;
 using MegaCrit.Sts2.Core.Localization;
 
@@ -14,6 +15,7 @@ public static class L10n
 {
     public const string FallbackLanguage = "eng";
     public const string DefaultTable = "settings_ui";
+    private static readonly Dictionary<(Assembly Assembly, string Language, string Table), IReadOnlyDictionary<string, string>> TableCache = [];
 
     public static IReadOnlyList<string> SupportedLanguages => LocManager.Languages;
 
@@ -169,6 +171,24 @@ public static class L10n
         return fallback ?? string.Empty;
     }
 
+    internal static string ResolveAnyForLanguage(
+        IEnumerable<string?> keys,
+        string language,
+        string? fallback = null,
+        string? table = null,
+        Assembly? assembly = null)
+    {
+        foreach (string? key in keys)
+        {
+            if (TryResolveForLanguage(key, language, out string? text, table, assembly))
+            {
+                return text;
+            }
+        }
+
+        return fallback ?? string.Empty;
+    }
+
     public static string ResolvePath(
         string? path,
         string? fallback = null,
@@ -205,6 +225,41 @@ public static class L10n
 
         text = resolvedText ?? string.Empty;
         return true;
+    }
+
+    internal static bool TryResolveForLanguage(
+        string? key,
+        string language,
+        out string text,
+        string? table = null,
+        Assembly? assembly = null)
+    {
+        text = string.Empty;
+        if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(language))
+        {
+            return false;
+        }
+
+        assembly = ResolveAssembly(assembly);
+        string resolvedTable = string.IsNullOrWhiteSpace(table) ? DefaultTable : table.Trim();
+        string resolvedKey = key.Trim();
+        if (!TryNormalizeLocReference(resolvedTable, resolvedKey, out resolvedTable, out resolvedKey))
+        {
+            return false;
+        }
+
+        if (TryGetRawTextForLanguage(resolvedTable, resolvedKey, language, assembly, out text))
+        {
+            return true;
+        }
+
+        if (!string.Equals(language, FallbackLanguage, StringComparison.OrdinalIgnoreCase)
+            && TryGetRawTextForLanguage(resolvedTable, resolvedKey, FallbackLanguage, assembly, out text))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     public static string GetFormattedText(string table, string key, Action<LocString>? configure = null)
@@ -263,5 +318,75 @@ public static class L10n
     private static Assembly ResolveAssembly(Assembly? assembly)
     {
         return AssemblyResolver.Resolve(assembly, typeof(L10n));
+    }
+
+    private static bool TryGetRawTextForLanguage(
+        string table,
+        string key,
+        string language,
+        Assembly assembly,
+        out string text)
+    {
+        IReadOnlyDictionary<string, string> lookup = LoadTable(table, language, assembly);
+        return lookup.TryGetValue(key, out text!);
+    }
+
+    private static IReadOnlyDictionary<string, string> LoadTable(string table, string language, Assembly assembly)
+    {
+        string normalizedLanguage = NormalizeLanguage(language);
+        string normalizedTable = table.Trim();
+        (Assembly, string, string) cacheKey = (assembly, normalizedLanguage, normalizedTable);
+        lock (TableCache)
+        {
+            if (TableCache.TryGetValue(cacheKey, out IReadOnlyDictionary<string, string>? cached))
+            {
+                return cached;
+            }
+        }
+
+        IReadOnlyDictionary<string, string> loaded = LoadTableUncached(normalizedTable, normalizedLanguage, assembly);
+        lock (TableCache)
+        {
+            TableCache[cacheKey] = loaded;
+        }
+
+        return loaded;
+    }
+
+    private static IReadOnlyDictionary<string, string> LoadTableUncached(
+        string table,
+        string language,
+        Assembly assembly)
+    {
+        string path = GetModTablePath(table, language, assembly);
+        try
+        {
+            using Godot.FileAccess? file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Read);
+            if (file == null)
+            {
+                return new Dictionary<string, string>(StringComparer.Ordinal);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(file.GetAsText());
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return new Dictionary<string, string>(StringComparer.Ordinal);
+            }
+
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in document.RootElement.EnumerateObject())
+            {
+                result[property.Name] = property.Value.ValueKind == JsonValueKind.String
+                    ? property.Value.GetString() ?? string.Empty
+                    : property.Value.ToString();
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            ModLogger.Warn($"读取本地化表失败：{path}", ex, assembly);
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
     }
 }

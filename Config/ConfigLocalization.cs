@@ -19,6 +19,11 @@ internal static class ConfigLocalization
         return ResolveEntryText(entry, entry.Attribute.DisplayNameKey, NameSuffix, entry.DisplayName);
     }
 
+    public static string GetDisplayName(ConfigEntry entry, string language)
+    {
+        return ResolveEntryTextForLanguage(entry, entry.Attribute.DisplayNameKey, NameSuffix, entry.DisplayName, language);
+    }
+
     public static string GetDescription(ConfigEntry entry)
     {
         return ResolveEntryText(entry, entry.Attribute.DescriptionKey, DescriptionSuffix, entry.Attribute.Description);
@@ -67,6 +72,22 @@ internal static class ConfigLocalization
         string conventionalKey = BuildEntryKey(entry, suffix);
         return L10n.ResolveAny(
             [explicitKey, conventionalKey],
+            fallback,
+            entry.Attribute.LocTable,
+            entry.Assembly);
+    }
+
+    private static string ResolveEntryTextForLanguage(
+        ConfigEntry entry,
+        string? explicitKey,
+        string suffix,
+        string? fallback,
+        string language)
+    {
+        string conventionalKey = BuildEntryKey(entry, suffix);
+        return L10n.ResolveAnyForLanguage(
+            [explicitKey, conventionalKey],
+            language,
             fallback,
             entry.Attribute.LocTable,
             entry.Assembly);

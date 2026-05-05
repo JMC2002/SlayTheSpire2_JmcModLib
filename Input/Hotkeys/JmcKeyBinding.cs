@@ -47,7 +47,7 @@ public readonly record struct JmcKeyBinding
     public Key Keyboard { get; init; }
 
     /// <summary>
-    /// 手柄输入 Action 名称；为空时表示不绑定手柄。
+    /// 手柄输入 Action 名称；为空时表示不绑定手柄，不存在于 Godot InputMap 的名称会被安全忽略。
     /// </summary>
     public string Controller { get; init; }
 
@@ -208,7 +208,9 @@ public readonly record struct JmcKeyBinding
             return true;
         }
 
-        return HasController && inputEvent.IsActionPressed(new StringName(Controller));
+        return HasController
+            && IsKnownControllerAction(Controller)
+            && inputEvent.IsActionPressed(new StringName(Controller));
     }
 
     /// <summary>
@@ -232,7 +234,9 @@ public readonly record struct JmcKeyBinding
             return true;
         }
 
-        return HasController && inputEvent.IsActionReleased(new StringName(Controller));
+        return HasController
+            && IsKnownControllerAction(Controller)
+            && inputEvent.IsActionReleased(new StringName(Controller));
     }
 
     /// <summary>
@@ -254,7 +258,9 @@ public readonly record struct JmcKeyBinding
             return true;
         }
 
-        return HasController && Godot.Input.IsActionPressed(new StringName(Controller));
+        return HasController
+            && IsKnownControllerAction(Controller)
+            && Godot.Input.IsActionPressed(new StringName(Controller));
     }
 
     /// <summary>
@@ -438,6 +444,12 @@ public readonly record struct JmcKeyBinding
         return exactModifiers
             ? pressedModifiers == Modifiers
             : (pressedModifiers & Modifiers) == Modifiers;
+    }
+
+    private static bool IsKnownControllerAction(string actionName)
+    {
+        return !string.IsNullOrWhiteSpace(actionName)
+            && InputMap.HasAction(new StringName(actionName));
     }
 
     private static string FormatModifiers(JmcKeyModifiers modifiers)

@@ -685,17 +685,28 @@ internal sealed class JmcKeybindButton : NButton
 
     private string GetKeyboardText()
     {
+        bool steamInputManaged = attribute.AllowController
+            && NControllerManager.Instance?.ShouldAllowControllerRebinding == false;
+
         if (isListening)
         {
+            if (steamInputManaged && !attribute.AllowKeyboard)
+            {
+                return ModSettingsText.SteamInputManaged();
+            }
+
             return ModSettingsText.KeybindListening();
         }
 
         if (!attribute.AllowKeyboard)
         {
-            return string.Empty;
+            return steamInputManaged ? ModSettingsText.SteamInputManaged() : string.Empty;
         }
 
-        return value.HasKeyboard ? value.ToKeyboardText() : ModSettingsText.KeybindUnbound();
+        string keyboardText = value.HasKeyboard ? value.ToKeyboardText() : ModSettingsText.KeybindUnbound();
+        return steamInputManaged
+            ? $"{keyboardText} / {ModSettingsText.SteamInputManaged()}"
+            : keyboardText;
     }
 
     private void NormalizeLayout()

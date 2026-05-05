@@ -4,6 +4,7 @@ using System.Reflection;
 using JmcModLib.Config.Entry;
 using JmcModLib.Config.Storage;
 using JmcModLib.Config.UI;
+using JmcModLib.Input;
 using JmcModLib.Reflection;
 using AttributeRouting = JmcModLib.Core.AttributeRouter.AttributeRouter;
 
@@ -287,6 +288,7 @@ public static class ConfigManager
         }
 
         _ = Storages.TryRemove(resolvedAssembly, out _);
+        JmcInputActionRegistry.UnregisterAssembly(resolvedAssembly);
         AssemblyUnregistered?.Invoke(resolvedAssembly);
     }
 
@@ -308,6 +310,7 @@ public static class ConfigManager
         lookup[entry.Key] = entry;
         entry.ValueChanged += OnEntryValueChanged;
         entry.SyncFromStorage(GetStorageInternal(entry.Assembly));
+        JmcInputActionRegistry.RegisterConfigEntry(entry);
         EntryRegistered?.Invoke(entry);
     }
 

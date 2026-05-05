@@ -103,10 +103,21 @@ public sealed class UIToggleAttribute : UIConfigAttribute<bool>
 {
 }
 
+/// <summary>
+/// 将 <see cref="Key"/> 或 <see cref="JmcKeyBinding"/> 配置项渲染为按键绑定控件。
+/// </summary>
+/// <param name="allowController">是否允许手柄绑定；为 <see langword="true"/> 时字段类型必须是 <see cref="JmcKeyBinding"/>，并会参与 JML Steam Input action 生成。</param>
+/// <param name="allowKeyboard">是否允许键盘绑定。</param>
 public sealed class UIKeybindAttribute(bool allowController = false, bool allowKeyboard = true) : UIConfigAttribute
 {
+    /// <summary>
+    /// 是否允许键盘绑定。
+    /// </summary>
     public bool AllowKeyboard { get; } = allowKeyboard;
 
+    /// <summary>
+    /// 是否允许手柄绑定；Steam Input 可用时，实际手柄按键建议在 Steam 输入中绑定。
+    /// </summary>
     public bool AllowController { get; } = allowController;
 
     public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
