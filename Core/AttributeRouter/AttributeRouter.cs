@@ -256,15 +256,10 @@ public static class AttributeRouter
     }
 }
 
-public sealed class SimpleAttributeHandler<TAttribute> : IAttributeHandler
+public sealed class SimpleAttributeHandler<TAttribute>(Action<Assembly, ReflectionAccessorBase, TAttribute> action) : IAttributeHandler
     where TAttribute : Attribute
 {
-    private readonly Action<Assembly, ReflectionAccessorBase, TAttribute> action;
-
-    public SimpleAttributeHandler(Action<Assembly, ReflectionAccessorBase, TAttribute> action)
-    {
-        this.action = action ?? throw new ArgumentNullException(nameof(action));
-    }
+    private readonly Action<Assembly, ReflectionAccessorBase, TAttribute> action = action ?? throw new ArgumentNullException(nameof(action));
 
     public Action<Assembly, IReadOnlyList<ReflectionAccessorBase>>? Unregister => null;
 
