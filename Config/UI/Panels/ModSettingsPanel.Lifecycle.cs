@@ -12,7 +12,7 @@ internal sealed partial class ModSettingsPanel
         nativeTemplates = SettingsUiTemplates.Resolve(this);
         BuildLayout();
         Connect(CanvasItem.SignalName.VisibilityChanged, Callable.From(OnVisibilityChange));
-        GetViewport().Connect(Viewport.SignalName.SizeChanged, Callable.From(RefreshPanelSize));
+        ConnectViewportSizeChanged();
         ConfigManager.ValueChanged += OnConfigValueChanged;
         ConfigManager.EntryRegistered += OnEntryRegistered;
         ConfigManager.AssemblyRegistered += OnAssemblyChanged;
@@ -29,6 +29,7 @@ internal sealed partial class ModSettingsPanel
         ConfigManager.AssemblyRegistered -= OnAssemblyChanged;
         ConfigManager.AssemblyUnregistered -= OnAssemblyChanged;
         L10n.UnsubscribeToLocaleChange(OnLocaleChanged);
+        DisconnectViewportSizeChanged();
         bindings.Clear();
         listeningKeybind = null;
         centerRoot = null;
@@ -88,5 +89,45 @@ internal sealed partial class ModSettingsPanel
         tween.TweenProperty(this, "modulate", Colors.White, 0.35).From(Colors.Transparent)
             .SetEase(Tween.EaseType.Out)
             .SetTrans(Tween.TransitionType.Cubic);
+    }
+
+    private void ConnectViewportSizeChanged()
+    {
+        Viewport? viewport = GetViewport();
+        if (viewport == null)
+        {
+            return;
+        }
+
+        Callable callable = Callable.From(RefreshPanelSize);
+        connectedViewport = viewport;
+        viewportSizeChangedCallable = callable;
+        if (!viewport.IsConnected(Viewport.SignalName.SizeChanged, callable))
+        {
+            viewport.Connect(Viewport.SignalName.SizeChanged, callable);
+        }
+    }
+
+    private void DisconnectViewportSizeChanged()
+    {
+        try
+        {
+            if (connectedViewport != null
+                && GodotObject.IsInstanceValid(connectedViewport)
+                && viewportSizeChangedCallable is { } callable
+                && connectedViewport.IsConnected(Viewport.SignalName.SizeChanged, callable))
+            {
+                connectedViewport.Disconnect(Viewport.SignalName.SizeChanged, callable);
+            }
+        }
+        catch
+        {
+            // 设置界面可能在场景切换期间销毁，失效信号断开失败可以忽略。
+        }
+        finally
+        {
+            connectedViewport = null;
+            viewportSizeChangedCallable = null;
+        }
     }
 }

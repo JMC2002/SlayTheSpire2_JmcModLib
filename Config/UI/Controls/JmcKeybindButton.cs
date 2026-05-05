@@ -25,6 +25,10 @@ internal sealed class JmcKeybindButton : NButton
     private MegaRichTextLabel? inputLabel;
     private MegaRichTextLabel? keyBindingLabel;
     private TextureRect? controllerBindingIcon;
+    private NControllerManager? connectedControllerManager;
+    private Callable? controllerDetectedCallable;
+    private Callable? mouseDetectedCallable;
+    private Callable? visibilityChangedCallable;
 
     private static JmcKeybindButton? ActiveListeningButton { get; set; }
 
@@ -83,7 +87,7 @@ internal sealed class JmcKeybindButton : NButton
 
         NormalizeLayout();
         TryConnectControllerSignals();
-        Connect(CanvasItem.SignalName.VisibilityChanged, Callable.From(UpdateDisplay));
+        ConnectVisibilitySignal();
         UpdateDisplay();
     }
 
@@ -321,8 +325,27 @@ internal sealed class JmcKeybindButton : NButton
     {
         try
         {
-            NControllerManager.Instance?.Connect(NControllerManager.SignalName.ControllerDetected, Callable.From(UpdateDisplay));
-            NControllerManager.Instance?.Connect(NControllerManager.SignalName.MouseDetected, Callable.From(UpdateDisplay));
+            NControllerManager? manager = NControllerManager.Instance;
+            if (manager == null)
+            {
+                return;
+            }
+
+            controllerDetectedCallable ??= Callable.From(UpdateDisplay);
+            mouseDetectedCallable ??= Callable.From(UpdateDisplay);
+            connectedControllerManager = manager;
+
+            Callable controllerCallable = controllerDetectedCallable.Value;
+            Callable mouseCallable = mouseDetectedCallable.Value;
+            if (!manager.IsConnected(NControllerManager.SignalName.ControllerDetected, controllerCallable))
+            {
+                manager.Connect(NControllerManager.SignalName.ControllerDetected, controllerCallable);
+            }
+
+            if (!manager.IsConnected(NControllerManager.SignalName.MouseDetected, mouseCallable))
+            {
+                manager.Connect(NControllerManager.SignalName.MouseDetected, mouseCallable);
+            }
         }
         catch (Exception ex)
         {
@@ -334,12 +357,43 @@ internal sealed class JmcKeybindButton : NButton
     {
         try
         {
-            NControllerManager.Instance?.Disconnect(NControllerManager.SignalName.ControllerDetected, Callable.From(UpdateDisplay));
-            NControllerManager.Instance?.Disconnect(NControllerManager.SignalName.MouseDetected, Callable.From(UpdateDisplay));
+            NControllerManager? manager = connectedControllerManager ?? NControllerManager.Instance;
+            if (manager == null || !GodotObject.IsInstanceValid(manager))
+            {
+                return;
+            }
+
+            if (controllerDetectedCallable is { } controllerCallable
+                && manager.IsConnected(NControllerManager.SignalName.ControllerDetected, controllerCallable))
+            {
+                manager.Disconnect(NControllerManager.SignalName.ControllerDetected, controllerCallable);
+            }
+
+            if (mouseDetectedCallable is { } mouseCallable
+                && manager.IsConnected(NControllerManager.SignalName.MouseDetected, mouseCallable))
+            {
+                manager.Disconnect(NControllerManager.SignalName.MouseDetected, mouseCallable);
+            }
         }
         catch
         {
             // Native settings can be torn down during scene changes; stale signal disconnect failures are harmless.
+        }
+        finally
+        {
+            connectedControllerManager = null;
+            controllerDetectedCallable = null;
+            mouseDetectedCallable = null;
+        }
+    }
+
+    private void ConnectVisibilitySignal()
+    {
+        visibilityChangedCallable ??= Callable.From(UpdateDisplay);
+        Callable callable = visibilityChangedCallable.Value;
+        if (!IsConnected(CanvasItem.SignalName.VisibilityChanged, callable))
+        {
+            Connect(CanvasItem.SignalName.VisibilityChanged, callable);
         }
     }
 
@@ -347,11 +401,19 @@ internal sealed class JmcKeybindButton : NButton
     {
         try
         {
-            Disconnect(CanvasItem.SignalName.VisibilityChanged, Callable.From(UpdateDisplay));
+            if (visibilityChangedCallable is { } callable
+                && IsConnected(CanvasItem.SignalName.VisibilityChanged, callable))
+            {
+                Disconnect(CanvasItem.SignalName.VisibilityChanged, callable);
+            }
         }
         catch
         {
             // Ignore shutdown disconnect races.
+        }
+        finally
+        {
+            visibilityChangedCallable = null;
         }
     }
 

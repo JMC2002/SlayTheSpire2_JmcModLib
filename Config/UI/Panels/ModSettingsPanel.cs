@@ -25,6 +25,8 @@ internal sealed partial class ModSettingsPanel : NSettingsPanel
     private MegaRichTextLabel? descriptionLabel;
     private SettingsUiTemplates? nativeTemplates;
     private JmcKeybindButton? listeningKeybind;
+    private Viewport? connectedViewport;
+    private Callable? viewportSizeChangedCallable;
     private bool suppressControlEvents;
 
     public static ModSettingsPanel Create()
