@@ -1,6 +1,6 @@
 # JmcModLib STS2 Interface Guide
 
-版本基准：JmcModLib 1.0.85
+版本基准：JmcModLib 1.0.89
 
 本文档面向使用 JmcModLib 开发《Slay the Spire 2》子 MOD 的场景，重点说明稳定入口、推荐写法、配置 UI Attribute、日志、热键、本地化、存储与扩展接口。
 
@@ -22,6 +22,7 @@ JmcModLib 的设计目标是让不同 C# 游戏的前置库尽量共享一套接
 - 运行时信息
 - 工作流程图
 - UML 结构图
+- 内部文件结构
 - 常见模式与建议
 
 ## 工作流程图
@@ -425,6 +426,29 @@ classDiagram
 
     ModLogger --> ModContext : logger context
 ```
+
+## 内部文件结构
+
+JML 的设置 UI 实现已经按职责拆分到 `Config/UI` 下的多个子目录。这个调整只影响 JML 内部源码组织，不改变子 MOD 的公开调用方式；`[UIToggle]`、`[UIHotkey]`、`JmcKeyBinding`、`UIButtonColor` 等公开类型仍然保持在 `JmcModLib.Config.UI` 命名空间。
+
+当前主要职责划分如下：
+
+- `Attributes/`：子 MOD 直接使用的配置 UI Attribute 与按钮颜色枚举。
+- `Options/`：下拉框等配置项的候选值解析。
+- `Text/`：JML 设置界面自身文本与本地化入口。
+- `State/`：设置 UI 的折叠状态等界面状态。
+- `Bridge/`：接入游戏原生设置界面的 Harmony 桥接。
+- `Panels/`：模组设置页与独立配置弹窗的页面级布局；`ModSettingsPanel` 已拆成 lifecycle、layout、sections、editors、actions、bindings、refresh、helpers 等 partial 文件。
+- `Controls/`：复用游戏原生风格的按钮、复选框、滑条、下拉框、颜色选择器、按键绑定控件等。
+- `Tooltips/`：复用游戏原生 hover 浮窗的说明文本。
+
+因此，子 MOD 仍然只需要：
+
+```csharp
+using JmcModLib.Config.UI;
+```
+
+不要依赖这些物理目录中的 internal 类型；它们会继续按 JML 内部实现需要调整。
 
 ## 快速开始
 

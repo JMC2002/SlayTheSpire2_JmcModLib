@@ -1,5 +1,4 @@
 using Godot;
-using JmcModLib.Config;
 using JmcModLib.Config.Serialization;
 
 namespace JmcModLib.Config.UI;
