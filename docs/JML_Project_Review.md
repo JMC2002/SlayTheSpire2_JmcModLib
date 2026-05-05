@@ -1,6 +1,6 @@
 # JmcModLib STS2 项目审阅报告
 
-源码基准：`JmcModLib_STS2`，JML 本体版本以源码 `Core/VersionInfo.cs` 与发布 manifest 为准：`1.0.99`。现有 `docs/` 中的文档标注为 `1.0.96`，存在版本漂移。本报告主要根据源码、项目文件与发布目录反推，不把既有文档作为事实来源。
+源码基准：`JmcModLib_STS2`，JML 本体版本以源码 `Core/VersionInfo.cs` 与发布 manifest 为准：`1.0.100`。现有 `docs/` 中的文档标注为 `1.0.96`，存在版本漂移。本报告主要根据源码、项目文件与发布目录反推，不把既有文档作为事实来源。
 
 分析范围包括 JML 本体、Bootstrap、发布 props/runtime 配置、Demo 的接入方式。未在沙盒内执行完整构建与游戏内运行验证，因为环境缺少 STS2/Godot 运行时 DLL 与本地 Steam/Godot 路径；以下结论是静态源码审阅结论。
 
@@ -136,9 +136,9 @@ registeredAttributeType.IsAssignableFrom(actualAttributeType)
 
 ### 3.6 Reflection / Utils
 
-反射访问器能力很强，是 JML 自动扫描与手动高级用法的重要基础。当前最大问题是 `Utils/ExprHelper.cs` 没有命名空间，导致 `ExprHelper` 暴露在全局命名空间下。这会带来三个问题：容易与子 MOD 自己的 `ExprHelper` 冲突；`GlobalUsings.cs` 中的 `JmcModLib.Utils` 对它无效；API 文档和 IntelliSense 的归属不一致。
+反射访问器能力很强，是 JML 自动扫描与手动高级用法的重要基础。`ExprHelper` 已迁移到 `namespace JmcModLib.Utils;`，不再暴露在全局命名空间下；这与 `GlobalUsings.cs` 中的 `JmcModLib.Utils` 保持一致，也降低了与子 MOD 自定义 `ExprHelper` 冲突的概率。
 
-建议将它移动到 `namespace JmcModLib.Utils;` 或 `namespace JmcModLib.Reflection;`。如果担心二进制兼容，可以暂时保留一个 `[Obsolete]` 的全局 forwarding 类型。
+迁移后的剩余风险主要是二进制/源码兼容：如果已有子 MOD 直接依赖全局 `ExprHelper`，需要改为引用 `JmcModLib.Utils.ExprHelper`，或通过 `using JmcModLib.Utils;` 引入。
 
 ### 3.7 Bootstrap / Build
 
@@ -167,7 +167,7 @@ Bootstrap/Runtime 双层是合理的。发布目录中 `JmcModLib.runtime.config
 | `IAttributeHandler` | public 扩展点 | 可保留，建议定义稳定性等级 |
 | `SimpleAttributeHandler<T>` | public 快速扩展点 | 可保留，建议支持 unregister action |
 | `ConfigLocalization` | 从 grep 看 public 成员，但类型可能 internal/无显式 public | 如果不是子 MOD API，应保持 internal |
-| `ExprHelper` | 全局 public | 移入 JML 命名空间，保留兼容转发 |
+| `ExprHelper` | `JmcModLib.Utils` public | 已移入 JML 命名空间；后续视兼容需求决定是否补转发 |
 | `JmcInputActionRegistry` | internal class 但 public members | 对外不会暴露，风格上建议 internal members 一致 |
 
 此外，部分公开类型 XML 注释仍是英文或不完整，例如 `ConfigManager`、`IConfigStorage`、`NewtonsoftConfigStorage`、`AttributeRouter`。这与项目规则“对外接口 XML 注释使用中文”不一致。
@@ -210,7 +210,7 @@ Bootstrap/Runtime 双层是合理的。发布目录中 `JmcModLib.runtime.config
 ### 高优先级
 
 1. **修复配置写入事务性/回调异常语义**。这是最容易导致用户配置损坏或状态不一致的问题。
-2. **清理公共 API 可见性**。尤其是 `ConfigEntry` 构造入口与 `ExprHelper` 全局命名空间。
+2. **清理公共 API 可见性**。尤其是 `ConfigEntry` 构造入口等仍可能被外部误用的类型。
 3. **发布产物移出源码树**。减少历史包、旧 DLL、旧文档造成的误用。
 4. **为核心逻辑补测试**。至少覆盖配置转换/存储、Attribute 扫描、热键匹配、动态下拉、反射访问器。
 5. **文档版本绑定构建**。构建时从 `VersionInfo.Version` 或 manifest 生成文档版本，避免文档与源码版本漂移。
@@ -285,4 +285,4 @@ flowchart TD
 
 JML 已经具备作为 STS2 子 MOD 前置库的主体形态。继续演进时，应把重点从“增加功能”转向“稳定公共契约”：明确哪些类型是给子 MOD 用的，哪些只是内部实现；让默认参数尽量自动推导但不牺牲长期稳定 key；把配置写入、热键、UI bridge 这些高风险路径用测试固定下来；文档和 Demo 随版本自动更新。
 
-如果只做一轮最小改进，我建议按这个顺序：修复 `ConfigEntry.ApplyValue` 异常语义 → `ExprHelper` 命名空间与 public 可见性清理 → 发布产物移出源码树 → 新增核心单元测试 → 重新生成当前版本文档。
+如果只做一轮最小改进，我建议按这个顺序：修复 `ConfigEntry.ApplyValue` 异常语义 → 继续清理公共 API 可见性 → 发布产物移出源码树 → 新增核心单元测试 → 重新生成当前版本文档。

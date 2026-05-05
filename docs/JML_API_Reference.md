@@ -1,6 +1,6 @@
 # JmcModLib STS2 API 文档
 
-源码基准：JML `1.0.99`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
+源码基准：JML `1.0.100`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
 
 ```csharp
 using JmcModLib.Core;
@@ -12,7 +12,7 @@ using JmcModLib.Utils;
 using JmcModLib.Prefabs;
 ```
 
-注意：`ExprHelper` 当前源码中没有命名空间，实际使用时位于全局命名空间；建议后续移动到 `JmcModLib.Utils` 或 `JmcModLib.Reflection`。
+`ExprHelper` 已位于 `JmcModLib.Utils` 命名空间，通常由 `global using JmcModLib.Utils;` 自动引入。
 
 ---
 
@@ -75,8 +75,8 @@ flowchart TD
 | 成员 | 说明 |
 |---|---|
 | `const string Name = "JmcModLib"` | JML 名称 |
-| `const string Version = "1.0.99"` | JML 版本 |
-| `string Tag` | `"[JmcModLib v1.0.99]"` |
+| `const string Version = "1.0.100"` | JML 版本 |
+| `string Tag` | `"[JmcModLib v1.0.100]"` |
 | `GetName(Assembly? assembly = null)` | 获取指定程序集名称，JML 自身返回固定名称 |
 | `GetVersion(Assembly? assembly = null)` | 获取指定程序集版本，JML 自身返回固定版本 |
 | `GetTag(Assembly? assembly = null)` | 生成日志标签 |
@@ -926,7 +926,7 @@ flowchart TD
 
 ### 11.6 `ExprHelper`
 
-当前位于全局命名空间。
+命名空间：`JmcModLib.Utils`。源码文件在 `Utils/ExprHelper.cs`，功能上仍属于反射访问辅助。
 
 | 成员 | 说明 |
 |---|---|

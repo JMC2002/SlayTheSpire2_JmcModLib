@@ -4,6 +4,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+
+namespace JmcModLib.Utils;
+
 using InsCache = System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.Assembly, System.Runtime.CompilerServices.ConditionalWeakTable<object, System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.MemberInfo, ExprHelper.MemberAccessors>>>;
 using InsDict = System.Runtime.CompilerServices.ConditionalWeakTable<object, System.Collections.Concurrent.ConcurrentDictionary<System.Reflection.MemberInfo, ExprHelper.MemberAccessors>>;
 // 实例成员缓存：Assembly -> target -> (MemberInfo -> Accessors)

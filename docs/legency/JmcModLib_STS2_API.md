@@ -1593,6 +1593,8 @@ accessor.GetTypedDelegate()
 
 ### ExprHelper
 
+命名空间：`JmcModLib.Utils`
+
 通过表达式获取字段/属性 getter/setter，并带程序集级缓存。
 
 ```csharp

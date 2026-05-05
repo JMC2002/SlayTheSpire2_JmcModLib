@@ -1536,6 +1536,114 @@
             泛型创建实例
             </summary>
         </member>
+        <member name="T:JmcModLib.Utils.ExprHelper">
+            <summary>
+            解析表达式的一些库
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.ExprHelper.EnableCache">
+            <summary>
+            是否开启缓存，不建议修改
+            </summary>
+        </member>
+        <member name="P:JmcModLib.Utils.ExprHelper.AccessMode">
+            <summary>
+            生成Accessor的后端，不建议修改，默认为Emit
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.ExprHelper.MemberAccessMode">
+            <summary>
+            生成Accessor的后端模式
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Utils.ExprHelper.MemberAccessMode.Reflection">
+            <summary>
+            直接反射
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Utils.ExprHelper.MemberAccessMode.ExpressionTree">
+            <summary>
+            表达式树实现
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Utils.ExprHelper.MemberAccessMode.Emit">
+            <summary>
+            Emit实现
+            </summary>
+        </member>
+        <member name="F:JmcModLib.Utils.ExprHelper.MemberAccessMode.Default">
+            <summary>
+            默认值，默认为Emit
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.Expect``2">
+            <summary>
+            仅供检查类型别名嵌套关系是否正确的辅助函数
+            </summary>
+        </member>
+        <member name="T:JmcModLib.Utils.ExprHelper.MemberAccessors">
+            <summary>
+            类型访问器辅助类
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.MemberAccessors.#ctor(System.Delegate,System.Delegate)">
+            <summary>
+            类型访问器辅助类
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.GetOrCreateAccessors``1(System.Linq.Expressions.Expression{System.Func{``0}},System.Reflection.Assembly)">
+            <summary>
+            从一个变量自动构造getter函数与setter函数，调用形式形如：
+            <example>
+            <code>
+             var (gf, sf) = ExprHelper.GetOrCreateAccessors(() => obj.Field)
+            </code>
+            </example>
+            </summary>
+            <typeparam name="T">变量的类型</typeparam>
+            <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
+            <param name="assembly">程序集，默认为调用者</param>
+            <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
+            <exception cref="T:System.ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
+            <exception cref="T:System.InvalidOperationException">实例对象为空、模式选择不正确</exception>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.GetOrCreateAccessors``1(System.Linq.Expressions.Expression{System.Func{``0}},System.Boolean@,System.Reflection.Assembly)">
+            <summary>
+            从一个变量自动构造getter函数与setter函数，并检查是否命中缓存，调用形式形如：
+            <example>
+            <code>
+            var (g, s) = ExprHelper.GetOrCreateAccessors(() => a.Field, out bool hit);
+            </code>
+            </example>
+            </summary>
+            <typeparam name="T">变量的类型</typeparam>
+            <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
+            <param name="cacheHit">是否命中缓存</param>
+            <param name="assembly">程序集，默认为调用者</param>
+            <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
+            <exception cref="T:System.ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
+            <exception cref="T:System.InvalidOperationException">实例对象为空、模式选择不正确</exception>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.CreateAccessorsByExpressionTree``1(System.Reflection.MemberInfo,System.Object)">
+            <summary>
+            创建 getter/setter
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.CreateAccessorsByEmit``1(System.Reflection.MemberInfo,System.Object)">
+            <summary>
+            使用 DynamicMethod + IL Emit 创建 getter/setter
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.ClearAssemblyCache(System.Reflection.Assembly)">
+            <summary>
+            清理某个 Assembly 的缓存
+            </summary>
+        </member>
+        <member name="M:JmcModLib.Utils.ExprHelper.ClearAll">
+            <summary>
+            清理所有缓存
+            </summary>
+        </member>
         <member name="T:JmcModLib.Utils.L10n">
              <summary>
              STS2 localization helpers.
@@ -1791,114 +1899,6 @@
             <param name="message">可选日志正文；为空时使用默认 Fatal 文本。</param>
             <param name="assembly">日志归属程序集；留空时自动解析调用方程序集。</param>
             <exception cref="T:System.Exception">当当前程序集配置启用 ThrowOnFatal 时重新抛出 <paramref name="exception"/>。</exception>
-        </member>
-        <member name="T:ExprHelper">
-            <summary>
-            解析表达式的一些库
-            </summary>
-        </member>
-        <member name="P:ExprHelper.EnableCache">
-            <summary>
-            是否开启缓存，不建议修改
-            </summary>
-        </member>
-        <member name="P:ExprHelper.AccessMode">
-            <summary>
-            生成Accessor的后端，不建议修改，默认为Emit
-            </summary>
-        </member>
-        <member name="T:ExprHelper.MemberAccessMode">
-            <summary>
-            生成Accessor的后端模式
-            </summary>
-        </member>
-        <member name="F:ExprHelper.MemberAccessMode.Reflection">
-            <summary>
-            直接反射
-            </summary>
-        </member>
-        <member name="F:ExprHelper.MemberAccessMode.ExpressionTree">
-            <summary>
-            表达式树实现
-            </summary>
-        </member>
-        <member name="F:ExprHelper.MemberAccessMode.Emit">
-            <summary>
-            Emit实现
-            </summary>
-        </member>
-        <member name="F:ExprHelper.MemberAccessMode.Default">
-            <summary>
-            默认值，默认为Emit
-            </summary>
-        </member>
-        <member name="M:ExprHelper.Expect``2">
-            <summary>
-            仅供检查类型别名嵌套关系是否正确的辅助函数
-            </summary>
-        </member>
-        <member name="T:ExprHelper.MemberAccessors">
-            <summary>
-            类型访问器辅助类
-            </summary>
-        </member>
-        <member name="M:ExprHelper.MemberAccessors.#ctor(System.Delegate,System.Delegate)">
-            <summary>
-            类型访问器辅助类
-            </summary>
-        </member>
-        <member name="M:ExprHelper.GetOrCreateAccessors``1(System.Linq.Expressions.Expression{System.Func{``0}},System.Reflection.Assembly)">
-            <summary>
-            从一个变量自动构造getter函数与setter函数，调用形式形如：
-            <example>
-            <code>
-             var (gf, sf) = ExprHelper.GetOrCreateAccessors(() => obj.Field)
-            </code>
-            </example>
-            </summary>
-            <typeparam name="T">变量的类型</typeparam>
-            <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
-            <param name="assembly">程序集，默认为调用者</param>
-            <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
-            <exception cref="T:System.ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
-            <exception cref="T:System.InvalidOperationException">实例对象为空、模式选择不正确</exception>
-        </member>
-        <member name="M:ExprHelper.GetOrCreateAccessors``1(System.Linq.Expressions.Expression{System.Func{``0}},System.Boolean@,System.Reflection.Assembly)">
-            <summary>
-            从一个变量自动构造getter函数与setter函数，并检查是否命中缓存，调用形式形如：
-            <example>
-            <code>
-            var (g, s) = ExprHelper.GetOrCreateAccessors(() => a.Field, out bool hit);
-            </code>
-            </example>
-            </summary>
-            <typeparam name="T">变量的类型</typeparam>
-            <param name="expr">构造表达式，形如<c>() => obj.field </c></param>
-            <param name="cacheHit">是否命中缓存</param>
-            <param name="assembly">程序集，默认为调用者</param>
-            <returns>返回由getter和setter组成的对，若目标为只读或者只写，在调用错误访问器时会抛出InvalidOperationException异常</returns>
-            <exception cref="T:System.ArgumentException">表达式格式不正确、目标字段或属性不正确</exception>
-            <exception cref="T:System.InvalidOperationException">实例对象为空、模式选择不正确</exception>
-        </member>
-        <member name="M:ExprHelper.CreateAccessorsByExpressionTree``1(System.Reflection.MemberInfo,System.Object)">
-            <summary>
-            创建 getter/setter
-            </summary>
-        </member>
-        <member name="M:ExprHelper.CreateAccessorsByEmit``1(System.Reflection.MemberInfo,System.Object)">
-            <summary>
-            使用 DynamicMethod + IL Emit 创建 getter/setter
-            </summary>
-        </member>
-        <member name="M:ExprHelper.ClearAssemblyCache(System.Reflection.Assembly)">
-            <summary>
-            清理某个 Assembly 的缓存
-            </summary>
-        </member>
-        <member name="M:ExprHelper.ClearAll">
-            <summary>
-            清理所有缓存
-            </summary>
         </member>
     </members>
 </doc>
