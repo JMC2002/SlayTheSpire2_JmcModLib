@@ -268,48 +268,6 @@ public sealed class UIIntSliderAttribute(int min, int max, int characterLimit = 
     }
 }
 
-public sealed class UIFloatSliderAttribute(
-    float min,
-    float max,
-    int decimalPlaces = 1,
-    int characterLimit = 5) : UIConfigAttribute<float>, ISliderConfigAttribute
-{
-    public int DecimalPlaces { get; } = decimalPlaces;
-
-    public int CharacterLimit { get; } = characterLimit;
-
-    public double Min { get; } = min;
-
-    public double Max { get; } = max;
-
-    public double Step => Math.Pow(10, -Math.Max(0, DecimalPlaces));
-
-    public override bool IsValid(Type valueType, object? defaultValue, out string? errorMessage)
-    {
-        if (valueType != typeof(float))
-        {
-            errorMessage =
-                $"{GetType().Name} only supports {typeof(float).FullName}, but the config value is {valueType.FullName}.";
-            return false;
-        }
-
-        if (Max < Min)
-        {
-            errorMessage = $"{GetType().Name} requires Max >= Min.";
-            return false;
-        }
-
-        if (DecimalPlaces < 0)
-        {
-            errorMessage = $"{GetType().Name} requires DecimalPlaces >= 0.";
-            return false;
-        }
-
-        errorMessage = null;
-        return true;
-    }
-}
-
 public sealed class UIDropdownAttribute(params string[]? exclude) : UIConfigAttribute
 {
     public IReadOnlyList<string> Options { get; } = exclude ?? [];

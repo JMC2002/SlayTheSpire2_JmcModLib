@@ -1,7 +1,6 @@
 # JmcModLib STS2 快速入门
 
-源码基准：JML `1.0.103`。本文按“默认参数尽量自动推导”的方式编写，适合子 MOD 作者快速接入。完整符号说明见 `JML_API_Reference.md`。
-
+推荐配合[Demo](https://github.com/JMC2002/SlayTheSpire2_JmcModLibDemo)使用
 ---
 
 ## 0. 先理解 JML 的默认工作方式
@@ -159,8 +158,7 @@ private static void ReloadCache()
 | `RestartRequired` | `[Config]` / `[UIHotkey]` | 在 UI 中提示该项需要重启或重进流程才完全生效 |
 | `LocTable` | `[Config]` / `[UIButton]` / `[UIHotkey]` | 本地化表名；为空时使用 `settings_ui` |
 | `characterLimit` | `UIInput` / 数值滑条 | 输入框字符上限，`0` 表示不限制 |
-| `min` / `max` / `step` | 滑条类 Attribute | 滑条范围与步进 |
-| `decimalPlaces` | `UIFloatSlider` | 浮点数显示与步进精度 |
+| `min` / `max` / `step` | `UISlider` | 滑条范围与实际步进；浮点数建议直接用 `step` 表达粒度，例如 `0.01` |
 | `allowKeyboard` / `allowController` | `UIKeybind` / `UIHotkey` | 是否允许键盘或手柄绑定；允许手柄时通常使用 `JmcKeyBinding` |
 | `DefaultKeyboard` | `UIHotkey` | 自动创建热键配置项时使用的默认键盘按键 |
 | `DefaultModifiers` | `UIHotkey` | 自动创建热键配置项时使用的默认键盘修饰键 |
@@ -197,7 +195,7 @@ public static class MySettings
     [Config("层级", Key = "gameplay.level")]
     public static int Level = 3;
 
-    [UIFloatSlider(0f, 2f, decimalPlaces: 2)]
+    [UISlider(0.0, 2.0, 0.01)]
     [Config("倍率", Key = "gameplay.multiplier")]
     public static float Multiplier = 1.0f;
 
@@ -344,11 +342,11 @@ ModRegistry.Register<MainFile>(true)?
     Order = 10)]
 public static int IntSlider = 40;
 
-[UIFloatSlider(-10f, 10f, decimalPlaces: 1)]
+[UISlider(-10.0, 10.0, 0.1)]
 [Config(
     "浮点滑条",
     group: NumericGroup,
-    Description = "UIFloatSlider 只支持 float，decimalPlaces 控制步进和显示精度。",
+    Description = "UISlider 可用于 float，step 控制实际步进。",
     Key = "numeric.float_slider",
     Order = 20)]
 public static float FloatSlider = 2.5f;

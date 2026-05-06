@@ -219,13 +219,6 @@ classDiagram
         +Step double
     }
 
-    class UIFloatSliderAttribute {
-        <<attribute>>
-        +Min double
-        +Max double
-        +DecimalPlaces int
-    }
-
     class UIDropdownAttribute {
         <<attribute>>
         +Options IReadOnlyList
@@ -384,7 +377,6 @@ classDiagram
     UIConfigAttribute <|-- UIToggleAttribute
     UIConfigAttribute <|-- UISliderAttribute
     UIConfigAttribute <|-- UIIntSliderAttribute
-    UIConfigAttribute <|-- UIFloatSliderAttribute
     UIConfigAttribute <|-- UIDropdownAttribute
     UIConfigAttribute <|-- UIInputAttribute
     UIConfigAttribute <|-- UIKeybindAttribute
@@ -671,7 +663,7 @@ public static int Level
 只有当修改配置后需要刷新缓存、重建 UI、重算运行时状态时才需要 `OnChanged`。
 
 ```csharp
-[UIFloatSlider(0f, 1f, decimalPlaces: 2)]
+[UISlider(0.0, 1.0, 0.01)]
 [Config(
     "透明度",
     onChanged: nameof(OnAlphaChanged),
@@ -879,21 +871,16 @@ public static int BaseLeft = 100;
 UIIntSliderAttribute(int min, int max, int characterLimit = 5)
 ```
 
-### UIFloatSlider
-
-类型：`float`
+### 浮点滑条
 
 ```csharp
-[UIFloatSlider(0f, 1f, decimalPlaces: 2)]
+[UISlider(0.0, 1.0, 0.01)]
 [Config("背景透明度")]
 public static float Alpha = 0.88f;
 ```
 
-参数：
+浮点数使用通用 `UISliderAttribute(double min, double max, double step = 1.0)`，其中 `step` 是实际步进。
 
-```csharp
-UIFloatSliderAttribute(float min, float max, int decimalPlaces = 1, int characterLimit = 5)
-```
 
 ### UIKeybind
 

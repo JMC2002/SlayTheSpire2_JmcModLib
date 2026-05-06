@@ -1,6 +1,6 @@
 # JmcModLib STS2 API 文档
 
-源码基准：JML `1.0.103`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
+源码基准：JML `1.0.104`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
 
 ```csharp
 using JmcModLib.Core;
@@ -75,8 +75,8 @@ flowchart TD
 | 成员 | 说明 |
 |---|---|
 | `const string Name = "JmcModLib"` | JML 名称 |
-| `const string Version = "1.0.103"` | JML 版本 |
-| `string Tag` | `"[JmcModLib v1.0.103]"` |
+| `const string Version = "1.0.104"` | JML 版本 |
+| `string Tag` | `"[JmcModLib v1.0.104]"` |
 | `GetName(Assembly? assembly = null)` | 获取指定程序集名称，JML 自身返回固定名称 |
 | `GetVersion(Assembly? assembly = null)` | 获取指定程序集版本，JML 自身返回固定版本 |
 | `GetTag(Assembly? assembly = null)` | 生成日志标签 |
@@ -500,7 +500,6 @@ flowchart TD
 | `UIColorAttribute` | `(params string[] presets)` | `Godot.Color` | 颜色选择，默认 `Palette=Game`、`AllowCustom=true`、`AllowAlpha=true` |
 | `UISliderAttribute` | `(double min, double max, double step = 1.0)` | 数字类型 | 通用数字滑条 |
 | `UIIntSliderAttribute` | `(int min, int max, int characterLimit = 5)` | `int` | int 滑条 |
-| `UIFloatSliderAttribute` | `(float min, float max, int decimalPlaces = 1, int characterLimit = 5)` | `float` | float 滑条，step = `10^-decimalPlaces` |
 | `UIDropdownAttribute` | `(params string[]? exclude)` | `string` 或 enum | string 用作选项；enum 用作排除项 |
 
 枚举：
