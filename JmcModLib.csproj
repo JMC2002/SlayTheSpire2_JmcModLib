@@ -158,10 +158,7 @@ texture_format/etc2=false
       <BootstrapTargetPath>$(ProjectDir)Bootstrap\bin\$(Configuration)\$(TargetFramework)\JmcModLib.Bootstrap.dll</BootstrapTargetPath>
     </PropertyGroup>
 
-    <MSBuild
-      Projects="$(BootstrapProject)"
-      Targets="Restore;Build"
-      Properties="Configuration=$(Configuration);Platform=$(Platform);Sts2DataDir=$(Sts2DataDir)" />
+    <MSBuild Projects="$(BootstrapProject)" Targets="Restore;Build" Properties="Configuration=$(Configuration);Platform=$(Platform);Sts2DataDir=$(Sts2DataDir)" />
 
     <!-- [2/4] 复制 DLL 到发布区：游戏加载 Bootstrap，子 MOD 引用 Runtime -->
     <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(PublishDir)\JmcModLib.Runtime.dll" />

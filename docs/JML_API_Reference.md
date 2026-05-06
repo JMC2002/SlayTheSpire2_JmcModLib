@@ -1,6 +1,6 @@
 # JmcModLib STS2 API 文档
 
-源码基准：JML `1.0.100`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
+源码基准：JML `1.0.103`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
 
 ```csharp
 using JmcModLib.Core;
@@ -75,8 +75,8 @@ flowchart TD
 | 成员 | 说明 |
 |---|---|
 | `const string Name = "JmcModLib"` | JML 名称 |
-| `const string Version = "1.0.100"` | JML 版本 |
-| `string Tag` | `"[JmcModLib v1.0.100]"` |
+| `const string Version = "1.0.103"` | JML 版本 |
+| `string Tag` | `"[JmcModLib v1.0.103]"` |
 | `GetName(Assembly? assembly = null)` | 获取指定程序集名称，JML 自身返回固定名称 |
 | `GetVersion(Assembly? assembly = null)` | 获取指定程序集版本，JML 自身返回固定版本 |
 | `GetTag(Assembly? assembly = null)` | 生成日志标签 |
@@ -495,7 +495,7 @@ flowchart TD
 | `UIConfigAttribute` | 抽象基类 | 任意 | UI 元数据基类 |
 | `UIConfigAttribute<TValue>` | 抽象泛型基类 | 精确 `TValue` | 自动校验值类型 |
 | `UIToggleAttribute` | 无 | `bool` | 勾选框 |
-| `UIKeybindAttribute` | `(bool allowController = false, bool allowKeyboard = true)` | `Godot.Key` 或 `JmcKeyBinding` | 按键绑定；手柄要求 `JmcKeyBinding` |
+| `UIKeybindAttribute` | `(bool allowController = false, bool allowKeyboard = true)` | `Godot.Key` 或 `JmcKeyBinding` | 按键绑定；手柄要求 `JmcKeyBinding`，如无必要建议使用`JKB` |
 | `UIInputAttribute` | `(int characterLimit = 0, bool multiline = false)` | `string` | 文本输入 |
 | `UIColorAttribute` | `(params string[] presets)` | `Godot.Color` | 颜色选择，默认 `Palette=Game`、`AllowCustom=true`、`AllowAlpha=true` |
 | `UISliderAttribute` | `(double min, double max, double step = 1.0)` | 数字类型 | 通用数字滑条 |
@@ -616,8 +616,8 @@ new JmcKeyBinding(Key keyboard, JmcKeyModifiers modifiers, bool enabled = true)
 | `BindingMember` | 构造参数 | 保存 `Key` 或 `JmcKeyBinding` 的静态字段/属性名 |
 | `Key` | `null` | 热键注册 key；空时按方法名推导 |
 | `ConsumeInput` | `true` | 触发后吃输入 |
-| `ExactModifiers` | `true` | 修饰键必须完全一致 |
-| `AllowEcho` | `false` | 是否允许键盘 echo |
+| `ExactModifiers` | `true` | 是否禁止额外修饰键；`true` 表示修饰键必须完全一致，`false` 表示只要求包含配置的修饰键 |
+| `AllowEcho` | `false` | 是否允许键盘长按产生的 echo 输入重复触发 |
 | `DebounceMs` | `150` | 防抖毫秒 |
 
 方法必须是静态无参；返回值会被忽略。
@@ -646,8 +646,8 @@ new JmcKeyBinding(Key keyboard, JmcKeyModifiers modifiers, bool enabled = true)
 | `AllowKeyboard` | `true` | 允许键盘绑定 |
 | `AllowController` | `false` | 允许手柄绑定 |
 | `ConsumeInput` | `true` | 触发后吃输入 |
-| `ExactModifiers` | `true` | 精确修饰键 |
-| `AllowEcho` | `false` | 允许 echo |
+| `ExactModifiers` | `true` | 是否禁止额外修饰键；`true` 表示修饰键必须完全一致，`false` 表示只要求包含配置的修饰键 |
+| `AllowEcho` | `false` | 是否允许键盘长按产生的 echo 输入重复触发 |
 | `DebounceMs` | `150` | 防抖 |
 
 ### 7.6 `JmcHotkeyManager`
@@ -1035,8 +1035,8 @@ JML 主项目：
 | `allowKeyboard = true` | UIKeybind/UIHotkey | 默认键盘绑定 | 合理 |
 | `allowController = false` | UIKeybind/UIHotkey | 默认不开手柄 | 合理 |
 | `ConsumeInput = true` | Hotkey | 触发后吃输入 | 动作热键合理；调试热键设 false |
-| `ExactModifiers = true` | Hotkey | 修饰键完全一致 | 合理 |
-| `AllowEcho = false` | Hotkey | 不响应长按 echo | 合理 |
+| `ExactModifiers = true` | Hotkey | 禁止额外修饰键 | 避免 `Ctrl + F8` 误触发 `F8` |
+| `AllowEcho = false` | Hotkey | 不响应长按重复输入 | 普通动作热键合理；连发类操作可设 true |
 | `DebounceMs = 150` | Hotkey | 防抖 150ms | 合理 |
 | `FallbackLanguage = eng` | L10n | 英文回退 | 合理 |
 | `DefaultTable = settings_ui` | L10n | 默认设置表 | 合理 |
