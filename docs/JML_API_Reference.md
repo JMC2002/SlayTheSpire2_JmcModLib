@@ -2,7 +2,7 @@
 
 # JmcModLib STS2 API 文档
 
-源码基准：JML `1.0.105`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
+源码基准：JML `1.1.0`。本文按源码重新整理，不以旧文档为准。命名空间常用组合：
 
 ```csharp
 using JmcModLib.Core;
@@ -77,8 +77,8 @@ flowchart TD
 | 成员 | 说明 |
 |---|---|
 | `const string Name = "JmcModLib"` | JML 名称 |
-| `const string Version = "1.0.105"` | JML 版本 |
-| `string Tag` | `"[JmcModLib v1.0.105]"` |
+| `const string Version = "1.1.0"` | JML 版本 |
+| `string Tag` | `"[JmcModLib v1.1.0]"` |
 | `GetName(Assembly? assembly = null)` | 获取指定程序集名称，JML 自身返回固定名称 |
 | `GetVersion(Assembly? assembly = null)` | 获取指定程序集版本，JML 自身返回固定版本 |
 | `GetTag(Assembly? assembly = null)` | 生成日志标签 |

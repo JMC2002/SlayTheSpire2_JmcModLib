@@ -6,6 +6,11 @@ All notable changes to this project will be recorded in this file.
 
 Versioning rule: major.minor.patch. The major version is used for larger feature-complete milestones, the minor version is generally updated when a new Steam Workshop version is published, and the patch version is updated after each code-related commit, starting from 0.
 
+## [1.1.0] - 2026-5-8
+### Added
+- Added the JmcModLib black-and-gold badge avatar.
+- Official release.
+
 ## [1.0.105] - 2026-5-7
 ### Added
 Initial version release.
