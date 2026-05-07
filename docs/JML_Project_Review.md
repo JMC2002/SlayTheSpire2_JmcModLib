@@ -1,6 +1,6 @@
 # JmcModLib STS2 项目审阅报告
 
-源码基准：`JmcModLib_STS2`，JML 本体版本以源码 `Core/VersionInfo.cs` 与发布 manifest 为准：`1.0.104`。现有 `docs/` 中的文档标注为 `1.0.96`，存在版本漂移。本报告主要根据源码、项目文件与发布目录反推，不把既有文档作为事实来源。
+源码基准：`JmcModLib_STS2`，JML 本体版本以源码 `Core/VersionInfo.cs` 与发布 manifest 为准：`1.0.105`。本报告主要根据源码、项目文件与发布目录反推，不把旧版文档作为事实来源。
 
 分析范围包括 JML 本体、Bootstrap、发布 props/runtime 配置、Demo 的接入方式。未在沙盒内执行完整构建与游戏内运行验证，因为环境缺少 STS2/Godot 运行时 DLL 与本地 Steam/Godot 路径；以下结论是静态源码审阅结论。
 

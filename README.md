@@ -66,7 +66,7 @@ Steam版本直接在创意工坊订阅即可（暂未开放）
  
 
 ## 🔔 3. 其他
-- 如果有人想使用这个Mod，可以先查看[快速上手](./doc/JML_QuickStart.md)与[API参考文档](./doc/JML_API_Reference.md)，配合[Demo](https://github.com/JMC2002/SlayTheSpire2_JmcModLibDemo)使用
+- 如果有人想使用这个Mod，可以先查看[快速上手](./docs/JML_QuickStart.md)与[API参考文档](./docs/JML_API_Reference.md)，配合[Demo](https://github.com/JMC2002/SlayTheSpire2_JmcModLibDemo)使用
 - Mod目前还处于建设阶段，建议如果想要使用这个MOD，加入[Discord服务器](https://discord.gg/peRD8SUxXg)或QQ群（617674584）
 - 本Mod主体部分来自[JmcModLib](https://github.com/JMC2002/JmcModLib)，使用CodeX辅助开发
 - 本Mod文档、本地化文本依赖AI生成，如果你觉得哪些翻译得不好，欢迎提出建议

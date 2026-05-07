@@ -1,3 +1,5 @@
+**🌐[ 中文 | [English](JML_QuickStart_en.md) ]**
+
 # JmcModLib STS2 快速入门
 
 推荐配合[Demo](https://github.com/JMC2002/SlayTheSpire2_JmcModLibDemo)使用
