@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace JmcModLib.Reflection
 {
@@ -93,7 +94,7 @@ namespace JmcModLib.Reflection
         {
             // 仅在 method 已经是 concrete（非 open generic）并且 caller 希望创建 invoker 时创建
             if (createInvoker && !method.IsGenericMethodDefinition)
-                _invoker = CreateInvoker(method);
+                _invoker = CreateInvokerOrFallback(method);
             else
                 _invoker = null; // 延迟创建
 
@@ -106,10 +107,10 @@ namespace JmcModLib.Reflection
                 {
                     switch (ps.Length)
                     {
-                        case 0: _fastInvoker0 = CreateFastInvoker0(method); break;
-                        case 1: _fastInvoker1 = CreateFastInvoker1(method, ps[0]); break;
-                        case 2: _fastInvoker2 = CreateFastInvoker2(method, ps[0], ps[1]); break;
-                        case 3: _fastInvoker3 = CreateFastInvoker3(method, ps[0], ps[1], ps[2]); break;
+                        case 0: _fastInvoker0 = TryCreateFastInvoker(method, () => CreateFastInvoker0(method)); break;
+                        case 1: _fastInvoker1 = TryCreateFastInvoker(method, () => CreateFastInvoker1(method, ps[0])); break;
+                        case 2: _fastInvoker2 = TryCreateFastInvoker(method, () => CreateFastInvoker2(method, ps[0], ps[1])); break;
+                        case 3: _fastInvoker3 = TryCreateFastInvoker(method, () => CreateFastInvoker3(method, ps[0], ps[1], ps[2])); break;
                     }
                 }
 
@@ -1010,6 +1011,49 @@ namespace JmcModLib.Reflection
 
             il.Emit(OpCodes.Ret);
             return (Func<object?, object?[], object?>)dm.CreateDelegate(typeof(Func<object?, object?[], object?>));
+        }
+
+        private static Func<object?, object?[], object?> CreateInvokerOrFallback(MethodInfo method)
+        {
+            try
+            {
+                return CreateInvoker(method);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(method, ex);
+                return CreateReflectionInvoker(method);
+            }
+        }
+
+        private static TDelegate? TryCreateFastInvoker<TDelegate>(MethodInfo method, Func<TDelegate> factory)
+            where TDelegate : Delegate
+        {
+            try
+            {
+                return factory();
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(method, ex);
+                return null;
+            }
+        }
+
+        private static Func<object?, object?[], object?> CreateReflectionInvoker(MethodInfo method)
+        {
+            return (instance, args) =>
+            {
+                try
+                {
+                    return method.Invoke(instance, args);
+                }
+                catch (TargetInvocationException ex) when (ex.InnerException != null)
+                {
+                    ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                    throw;
+                }
+            };
         }
 
         /// <summary>

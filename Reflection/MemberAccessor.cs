@@ -75,10 +75,10 @@ namespace JmcModLib.Reflection
                     //readonly
                     if (!f.IsLiteral && f.IsInitOnly)
                     {
-                        getter = CreateFieldGetter(f);
+                        getter = CreateFieldGetterOrFallback(f);
                         setter = null;
                         // readonly：仅生成 Getter
-                        TypedGetter = CreateTypedFieldGetter(f);
+                        TypedGetter = TryCreateTypedAccessor(f, CreateTypedFieldGetter);
                         TypedSetter = null;
                     }
                     // 如果是 const 字段，直接使用 GetRawConstantValue 获取值
@@ -87,16 +87,16 @@ namespace JmcModLib.Reflection
                         getter = _ => f.GetRawConstantValue();
                         setter = null; // const 字段没有 setter
                         // const 一定是静态字段：生成 Func<TValue>
-                        TypedGetter = CreateTypedFieldGetter(f);
+                        TypedGetter = TryCreateTypedAccessor(f, CreateTypedFieldGetter);
                         TypedSetter = null;
                     }
                     else
                     {
-                        getter = CreateFieldGetter(f);
-                        setter = CreateFieldSetter(f);
+                        getter = CreateFieldGetterOrFallback(f);
+                        setter = CreateFieldSetterOrFallback(f);
                         // 普通字段：Getter/Setter 都生成
-                        TypedGetter = CreateTypedFieldGetter(f);
-                        TypedSetter = CreateTypedFieldSetter(f);
+                        TypedGetter = TryCreateTypedAccessor(f, CreateTypedFieldGetter);
+                        TypedSetter = TryCreateTypedAccessor(f, CreateTypedFieldSetter);
                     }
 
                     break;
@@ -116,11 +116,11 @@ namespace JmcModLib.Reflection
 
                         var getterMethod = p.GetGetMethod(true);
                         if (getterMethod != null)
-                            indexGetter = CreateIndexerGetter(p, getterMethod);
+                            indexGetter = CreateIndexerGetterOrFallback(p, getterMethod);
 
                         var setterMethod = p.GetSetMethod(true);
                         if (setterMethod != null)
-                            indexSetter = CreateIndexerSetter(p, setterMethod);
+                            indexSetter = CreateIndexerSetterOrFallback(p, setterMethod);
 
                         // 普通 getter/setter 清空
                         getter = null;
@@ -133,15 +133,15 @@ namespace JmcModLib.Reflection
                         indexParams = null;
 
                         if (p.CanRead)
-                            getter = CreatePropertyGetter(p);
+                            getter = CreatePropertyGetterOrFallback(p);
                         if (p.CanWrite)
-                            setter = CreatePropertySetter(p);
+                            setter = CreatePropertySetterOrFallback(p);
 
                         // 生成强类型委托
                         if (p.CanRead)
-                            TypedGetter = CreateTypedPropertyGetter(p);
+                            TypedGetter = TryCreateTypedAccessor(p, CreateTypedPropertyGetter);
                         if (p.CanWrite)
-                            TypedSetter = CreateTypedPropertySetter(p);
+                            TypedSetter = TryCreateTypedAccessor(p, CreateTypedPropertySetter);
                     }
 
                     break;
@@ -150,6 +150,98 @@ namespace JmcModLib.Reflection
                     throw new ArgumentException($"不支持的成员类型: {member.MemberType}");
             }
 
+        }
+
+        private static Delegate? TryCreateTypedAccessor<TMember>(TMember member, Func<TMember, Delegate> factory)
+            where TMember : MemberInfo
+        {
+            try
+            {
+                return factory(member);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(member, ex);
+                return null;
+            }
+        }
+
+        private static Func<object?, object?> CreateFieldGetterOrFallback(FieldInfo field)
+        {
+            try
+            {
+                return CreateFieldGetter(field);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(field, ex);
+                return field.GetValue;
+            }
+        }
+
+        private static Action<object?, object?> CreateFieldSetterOrFallback(FieldInfo field)
+        {
+            try
+            {
+                return CreateFieldSetter(field);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(field, ex);
+                return field.SetValue;
+            }
+        }
+
+        private static Func<object?, object?> CreatePropertyGetterOrFallback(PropertyInfo property)
+        {
+            try
+            {
+                return CreatePropertyGetter(property);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(property, ex);
+                return target => property.GetValue(target);
+            }
+        }
+
+        private static Action<object?, object?> CreatePropertySetterOrFallback(PropertyInfo property)
+        {
+            try
+            {
+                return CreatePropertySetter(property);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(property, ex);
+                return (target, value) => property.SetValue(target, value);
+            }
+        }
+
+        private static Func<object?, object?[], object?> CreateIndexerGetterOrFallback(PropertyInfo property, MethodInfo getterMethod)
+        {
+            try
+            {
+                return CreateIndexerGetter(property, getterMethod);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(property, ex);
+                return (target, indexArgs) => property.GetValue(target, indexArgs);
+            }
+        }
+
+        private static Action<object?, object?, object?[]> CreateIndexerSetterOrFallback(PropertyInfo property, MethodInfo setterMethod)
+        {
+            try
+            {
+                return CreateIndexerSetter(property, setterMethod);
+            }
+            catch (Exception ex)
+            {
+                ReflectionFallback.LogDynamicAccessorFallback(property, ex);
+                return (target, value, indexArgs) => property.SetValue(target, value, indexArgs);
+            }
         }
 
         // ======================

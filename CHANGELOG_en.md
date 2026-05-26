@@ -6,6 +6,11 @@ All notable changes to this project will be recorded in this file.
 
 Versioning rule: major.minor.patch. The major version is used for larger feature-complete milestones, the minor version is generally updated when a new Steam Workshop version is published, and the patch version is updated after each code-related commit, starting from 0.
 
+## [1.2.0] - 2026-5-26
+### Fixed
+- Fixed Attribute scanning being interrupted on Android and other restricted runtimes when dynamic reflection accessors fail to initialize, which could prevent `[Config]`, `[UIButton]`, `[JmcHotkey]`, and `[UIHotkey]` from registering.
+- Reflection accessors now fall back to standard reflection calls when dynamic IL or expression delegates are unavailable, keeping config and hotkey systems usable across platforms.
+
 ## [1.1.0] - 2026-5-8
 ### Added
 - Added the JmcModLib black-and-gold badge avatar.
