@@ -1,0 +1,140 @@
+name: Code Lines Badge
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - '.github/badges/code-lines.svg'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  BADGE_PATH: .github/badges/code-lines.svg
+  BADGE_LABEL: code lines
+  EXCLUDE_PATH_REGEX: '(^|/)(bin|obj|\.vs|modPublish|\.github/badges)(/|$)'
+  CLOC_EXCLUDE_LANGUAGES: Markdown,Text
+
+jobs:
+  update-code-lines-badge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install cloc
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cloc
+
+      - name: Count source lines with cloc
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $fileList = ".cloc-files.txt"
+          $clocReport = ".cloc-report.json"
+          $files = git ls-files | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_) -and
+            $_ -ne $env:BADGE_PATH -and
+            $_ -notmatch $env:EXCLUDE_PATH_REGEX
+          }
+
+          $files | Set-Content -Path $fileList -Encoding utf8
+
+          $clocArgs = @(
+            "--json",
+            "--quiet",
+            "--list-file=$fileList"
+          )
+
+          if (-not [string]::IsNullOrWhiteSpace($env:CLOC_EXCLUDE_LANGUAGES)) {
+            $clocArgs += "--exclude-lang=$env:CLOC_EXCLUDE_LANGUAGES"
+          }
+
+          $clocJson = (& cloc @clocArgs) -join [Environment]::NewLine
+          if ($LASTEXITCODE -ne 0) {
+            throw "cloc failed with exit code $LASTEXITCODE"
+          }
+
+          $clocJson | Set-Content -Path $clocReport -Encoding utf8
+          $report = $clocJson | ConvertFrom-Json
+          $total = [int]$report.SUM.code
+          $message = "$total"
+
+          New-Item -ItemType Directory -Force (Split-Path $env:BADGE_PATH) | Out-Null
+
+          function Escape-SvgText([string]$value) {
+            [System.Net.WebUtility]::HtmlEncode($value)
+          }
+
+          function Get-BadgeSegmentWidth([string]$value, [int]$minimum) {
+            $width = 0
+            foreach ($char in $value.ToCharArray()) {
+              if ([int][char]$char -gt 127) {
+                $width += 13
+              } elseif ($char -cmatch '[A-Z0-9]') {
+                $width += 7
+              } else {
+                $width += 6
+              }
+            }
+
+            [Math]::Max($minimum, $width + 18)
+          }
+
+          $label = $env:BADGE_LABEL
+          $labelWidth = Get-BadgeSegmentWidth $label 65
+          $messageWidth = Get-BadgeSegmentWidth $message 41
+          $totalWidth = $labelWidth + $messageWidth
+          $labelCenter = [Math]::Floor($labelWidth / 2)
+          $messageCenter = $labelWidth + [Math]::Floor($messageWidth / 2)
+          $aria = Escape-SvgText "${label}: $message"
+          $safeLabel = Escape-SvgText $label
+          $safeMessage = Escape-SvgText $message
+
+          $svg = @"
+          <svg xmlns="http://www.w3.org/2000/svg" width="$totalWidth" height="22" role="img" aria-label="$aria">
+            <title>$aria</title>
+            <linearGradient id="s" x2="0" y2="100%">
+              <stop offset="0" stop-color="#fff" stop-opacity=".12"/>
+              <stop offset="1" stop-color="#000" stop-opacity=".06"/>
+            </linearGradient>
+            <clipPath id="r">
+              <rect width="$totalWidth" height="22" rx="6" fill="#fff"/>
+            </clipPath>
+            <g clip-path="url(#r)">
+              <rect width="$labelWidth" height="22" fill="#3f3f46"/>
+              <rect x="$labelWidth" width="$messageWidth" height="22" fill="#2563eb"/>
+              <rect width="$totalWidth" height="22" fill="url(#s)"/>
+            </g>
+            <g fill="#fff" text-anchor="middle" font-family="Segoe UI, Noto Sans, Helvetica, Arial, sans-serif" font-size="12" font-weight="600">
+              <text x="$labelCenter" y="15">$safeLabel</text>
+              <text x="$messageCenter" y="15">$safeMessage</text>
+            </g>
+          </svg>
+          "@
+
+          $svg.Trim() | Set-Content -Path $env:BADGE_PATH -Encoding utf8
+          "CODE_LINES=$total" >> $env:GITHUB_ENV
+
+      - name: Commit badge update
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- "$BADGE_PATH"; then
+            echo "Code lines badge is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$BADGE_PATH"
+          git commit -m "chore: update code lines badge"
+          git push

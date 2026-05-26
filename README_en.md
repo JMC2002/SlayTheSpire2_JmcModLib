@@ -1,8 +1,10 @@
-**🌐[ [中文](README.md) | English ]**
-
-[📝 Changelog](CHANGELOG_en.md)
-
-[📦 Releases](https://github.com/JMC2002/SlayTheSpire2_JmcModLib/releases)
+<p align="center">
+  <a href="README.md"><img alt="中文" src=".github/badges/language-zh.svg"></a>
+  <a href="README_en.md"><img alt="English" src=".github/badges/language-en.svg"></a>
+  <a href="CHANGELOG_en.md"><img alt="Changelog" src=".github/badges/changelog-en.svg"></a>
+  <a href="https://github.com/JMC2002/SlayTheSpire2_JmcModLib/releases"><img alt="Releases" src=".github/badges/releases.svg"></a>
+  <a href="https://github.com/JMC2002/SlayTheSpire2_JmcModLib/actions/workflows/code-lines.yml"><img alt="Code lines" src=".github/badges/code-lines.svg"></a>
+</p>
 
 # JmcModLib
 ## 0. Installation
