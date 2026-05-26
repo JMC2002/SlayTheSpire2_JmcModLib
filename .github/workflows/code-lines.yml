@@ -6,17 +6,16 @@ on:
       - master
       - main
     paths-ignore:
-      - '.github/badges/code-lines.json'
+      - '.github/badges/code-lines.svg'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 env:
-  BADGE_PATH: .github/badges/code-lines.json
+  BADGE_PATH: .github/badges/code-lines.svg
   BADGE_LABEL: code lines
-  BADGE_CACHE_SECONDS: 300
-  EXCLUDE_PATH_REGEX: '(^|/)(bin|obj|\.vs|modPublish)(/|$)'
+  EXCLUDE_PATH_REGEX: '(^|/)(bin|obj|\.vs|modPublish|\.github/badges)(/|$)'
   CLOC_EXCLUDE_LANGUAGES: Markdown,Text
 
 jobs:
@@ -77,15 +76,58 @@ jobs:
 
           New-Item -ItemType Directory -Force (Split-Path $env:BADGE_PATH) | Out-Null
 
-          $badge = [ordered]@{
-            schemaVersion = 1
-            label = $env:BADGE_LABEL
-            message = $message
-            color = "blue"
-            cacheSeconds = [int]$env:BADGE_CACHE_SECONDS
+          function Escape-SvgText([string]$value) {
+            [System.Net.WebUtility]::HtmlEncode($value)
           }
 
-          $badge | ConvertTo-Json | Set-Content -Path $env:BADGE_PATH -Encoding utf8
+          function Get-BadgeSegmentWidth([string]$value, [int]$minimum) {
+            $width = 0
+            foreach ($char in $value.ToCharArray()) {
+              if ([int][char]$char -gt 127) {
+                $width += 13
+              } elseif ($char -cmatch '[A-Z0-9]') {
+                $width += 7
+              } else {
+                $width += 6
+              }
+            }
+
+            [Math]::Max($minimum, $width + 18)
+          }
+
+          $label = $env:BADGE_LABEL
+          $labelWidth = Get-BadgeSegmentWidth $label 65
+          $messageWidth = Get-BadgeSegmentWidth $message 41
+          $totalWidth = $labelWidth + $messageWidth
+          $labelCenter = [Math]::Floor($labelWidth / 2)
+          $messageCenter = $labelWidth + [Math]::Floor($messageWidth / 2)
+          $aria = Escape-SvgText "${label}: $message"
+          $safeLabel = Escape-SvgText $label
+          $safeMessage = Escape-SvgText $message
+
+          $svg = @"
+          <svg xmlns="http://www.w3.org/2000/svg" width="$totalWidth" height="22" role="img" aria-label="$aria">
+            <title>$aria</title>
+            <linearGradient id="s" x2="0" y2="100%">
+              <stop offset="0" stop-color="#fff" stop-opacity=".12"/>
+              <stop offset="1" stop-color="#000" stop-opacity=".06"/>
+            </linearGradient>
+            <clipPath id="r">
+              <rect width="$totalWidth" height="22" rx="6" fill="#fff"/>
+            </clipPath>
+            <g clip-path="url(#r)">
+              <rect width="$labelWidth" height="22" fill="#3f3f46"/>
+              <rect x="$labelWidth" width="$messageWidth" height="22" fill="#2563eb"/>
+              <rect width="$totalWidth" height="22" fill="url(#s)"/>
+            </g>
+            <g fill="#fff" text-anchor="middle" font-family="Segoe UI, Noto Sans, Helvetica, Arial, sans-serif" font-size="12" font-weight="600">
+              <text x="$labelCenter" y="15">$safeLabel</text>
+              <text x="$messageCenter" y="15">$safeMessage</text>
+            </g>
+          </svg>
+          "@
+
+          $svg.Trim() | Set-Content -Path $env:BADGE_PATH -Encoding utf8
           "CODE_LINES=$total" >> $env:GITHUB_ENV
 
       - name: Commit badge update

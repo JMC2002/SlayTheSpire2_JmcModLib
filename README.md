@@ -1,10 +1,10 @@
-**🌐[ 中文 | [English](README_en.md) ]**
-
-[📝更新日志](CHANGELOG.md)
-
-[📦 Releases](https://github.com/JMC2002/SlayTheSpire2_JmcModLib/releases)
-
-![代码行数](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FJMC2002%2FSlayTheSpire2_JmcModLib%2Fmaster%2F.github%2Fbadges%2Fcode-lines.json%3Fv%3D2)
+<p align="center">
+  <a href="README.md"><img alt="中文" src=".github/badges/language-zh.svg"></a>
+  <a href="README_en.md"><img alt="English" src=".github/badges/language-en.svg"></a>
+  <a href="CHANGELOG.md"><img alt="更新日志" src=".github/badges/changelog-zh.svg"></a>
+  <a href="https://github.com/JMC2002/SlayTheSpire2_JmcModLib/releases"><img alt="Releases" src=".github/badges/releases.svg"></a>
+  <a href="https://github.com/JMC2002/SlayTheSpire2_JmcModLib/actions/workflows/code-lines.yml"><img alt="代码行数" src=".github/badges/code-lines.svg"></a>
+</p>
 
 # JmcModLib
 ##  0. 安装
