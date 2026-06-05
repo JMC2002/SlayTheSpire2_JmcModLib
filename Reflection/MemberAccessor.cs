@@ -201,7 +201,7 @@ namespace JmcModLib.Reflection
             catch (Exception ex)
             {
                 ReflectionFallback.LogDynamicAccessorFallback(property, ex);
-                return target => property.GetValue(target);
+                return property.GetValue;
             }
         }
 
@@ -214,7 +214,7 @@ namespace JmcModLib.Reflection
             catch (Exception ex)
             {
                 ReflectionFallback.LogDynamicAccessorFallback(property, ex);
-                return (target, value) => property.SetValue(target, value);
+                return property.SetValue;
             }
         }
 

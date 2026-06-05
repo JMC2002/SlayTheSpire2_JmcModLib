@@ -1,5 +1,4 @@
 using Godot;
-using Godot.Collections;
 using HarmonyLib;
 using JmcModLib.Config.UI;
 using MegaCrit.Sts2.addons.mega_text;
@@ -20,7 +19,7 @@ internal static class PauseMenuBridge
     private static readonly StringName KeyMetaKey = new("jmcmodlib_pause_menu_key");
     private static readonly StringName ConnectedMetaKey = new("jmcmodlib_pause_menu_connected");
     private static readonly Variant CallableKey = Variant.CreateFrom("callable");
-    private static readonly ConditionalWeakTable<NPauseMenu, MenuState> MenuStates = new();
+    private static readonly ConditionalWeakTable<NPauseMenu, MenuState> MenuStates = [];
     private static readonly string[] TemplateCandidates = ["Settings", "Resume", "SaveAndQuit"];
     private static readonly string[] ExitActionNames = ["GiveUp", "Disconnect", "SaveAndQuit"];
 
@@ -260,10 +259,7 @@ internal static class PauseMenuBridge
     private static void ApplyText(NPauseMenuButton button, string text)
     {
         MegaLabel? label = button.GetNodeOrNull<MegaLabel>("Label");
-        if (label != null)
-        {
-            label.SetTextAutoSize(text);
-        }
+        label?.SetTextAutoSize(text);
     }
 
     private static void ApplyColor(NPauseMenuButton button, UIButtonColor color)
