@@ -6,6 +6,10 @@ All notable changes to this project will be recorded in this file.
 
 Versioning rule: major.minor.patch. The major version is used for larger feature-complete milestones, the minor version is generally updated when a new Steam Workshop version is published, and the patch version is updated after each code-related commit, starting from 0.
 
+## [1.3.2] - 2026-6-6
+### Fixed
+- Fixed an issue where registering controller events after a game version update could invalidate controller layouts.
+
 ## [1.3.0] - 2026-6-5
 ### Added
 - Added pause menu entry extension APIs, allowing child mods to add button entries to the in-run pause menu through `[PauseMenuButton]` or manual registration.
